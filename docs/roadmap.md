@@ -36,13 +36,27 @@ Windows is what closes this milestone.
 
 Goal: tidy, undo, restart the terminal, the history is still there.
 
-- [ ] `internal/journal`: append-only file, tolerant reader
-- [ ] `internal/apply`: step-by-step run, re-check before each step, conflict strategies, cross-volume move
-- [ ] `internal/trash` for macOS, Linux, Windows
-- [ ] `tidy` (confirmation, no-terminal rule), `undo` (checks first), `history`
-- [ ] Tests for safety rules 1, 2, 3, 5, 6, 7, 11
+- [x] `internal/journal`: append-only file, tolerant reader (a half-written last
+      line is closed off before the next entry, so one crash costs one line)
+- [x] `internal/apply`: step-by-step run, re-check before each step, conflict strategies, cross-volume move
+- [x] `internal/trash` for macOS, Linux, Windows (macOS tested here; the other two by CI)
+- [x] `tidy` (confirmation, no-terminal rule), `undo` (checks first), `history`
+- [ ] Tests for safety rules 1, 2, 3, 5, 6, 7, 11 — 1, 2, 3, 5, 6, 7 are covered; 11
+      needs two volumes (below)
 
 Done when: tidy then undo restores a folder exactly, on all three systems, including after a clash and after the user moved a file in between.
+
+State: written and tested on macOS (2026-11-18); CI on Linux and Windows is what
+closes it. Two things cannot be checked from this machine and are listed here so
+they are not forgotten:
+
+- **A real cross-volume move** (safety rule 11). Mount something, then
+  `owlsort tidy` a file from the other volume; the copy must appear before the
+  source disappears.
+- **The Windows recycle bin** and **undoing a trashed file there.** Explorer
+  keeps its own records, so the journal cannot say where a recycled file went;
+  undo reports `needs_foreground` instead of guessing. Read the platform section
+  of [architecture.md](architecture.md).
 
 ## M2: managing rules
 

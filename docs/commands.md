@@ -17,6 +17,11 @@ milestone return "not built yet" until that milestone lands
 Command names and flags are always English. Only output text and default folder
 names are translated.
 
+Exit code 3 is about the *run*, not the *plan*: a `.DS_Store` that the preview
+said it would leave alone is not a skipped step, but a file the strategy refused
+to overwrite is. The preview is where the exclusions are reported; the exit code
+is what a script checks after asking for the work.
+
 ## Exit codes
 
 A public interface; scripts rely on them (`internal/exitcode`).
@@ -26,7 +31,7 @@ A public interface; scripts rely on them (`internal/exitcode`).
 | 0 | success |
 | 1 | any other error |
 | 2 | bad arguments, or an invalid or unreadable configuration |
-| 3 | finished, but some files were skipped |
+| 3 | finished, but a step that was planned did not go through: a clash the strategy left alone, a file that changed after the preview, or one that failed |
 | 4 | nothing was moved: not confirmed, or no terminal and no `--yes` |
 | 5 | nothing to undo |
 
@@ -108,6 +113,45 @@ The shape is `internal/plan.Plan`. Skip reasons are a fixed set; do not rename t
 
 Skip reasons: `in_code_project`, `in_notes_library`, `kept`, `downloading`,
 `hidden`, `conflict`, `needs_foreground`, `changed`.
+
+### `tidy` and `undo` `--json` (draft; version 1)
+
+Both print the same shape: what the run did, step by step.
+
+```json
+{
+  "batch": "20261118-142503-a1b2",
+  "done": 2,
+  "skipped": [ { "path": "/Users/me/Downloads/a.pdf", "reason": "conflict", "rule": "PDFs" } ],
+  "failed": 0
+}
+```
+
+A step that was tried and did not work also appears, with the error:
+
+```json
+{ "failed": 1,
+  "failures": [ { "path": "/Users/me/Downloads/b.pdf", "rule": "PDFs", "error": "apply: ..." } ] }
+```
+
+The skip reasons are the same fixed set as `preview`.
+
+### `history` `--json` (draft; version 1)
+
+One object per run, newest first (`internal/journal.Run`):
+
+```json
+[
+  {
+    "batch": "20261118-142503-a1b2",
+    "time": "2026-11-18T14:25:03Z",
+    "moved": 2,
+    "to": ["/Users/me/Downloads/Documents/PDF"],
+    "undone": true,
+    "undo_done": 2
+  }
+]
+```
 
 ### The journal
 

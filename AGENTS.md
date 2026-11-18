@@ -19,11 +19,12 @@ code, no shared data, no feature parity required. Written in Go, no cgo, no netw
 ## State of the code
 
 - **Done and tested:** `internal/config` (model, validation, built-in rules, default path,
-  never-overwrite write), `category`, `pathvars`, `i18n`, `exitcode`, `policy`, `scan`,
-  `protect`, `rules` (M0), `output` (text preview + JSON), and `init` / `preview` / `explain`.
-- **Contracts written, code to do:** `apply`, `journal`, `trash` (M1); `watch`, `service`
-  (M3). Each file starts with a comment that is the contract to build to. Stubs return
-  `ErrNotImplemented`.
+  never-overwrite write), `category`, `pathvars`, `i18n`, `exitcode`, `policy`, `naming`,
+  `scan`, `protect`, `rules` (M0), `journal`, `apply`, `trash`, `output` (text preview +
+  JSON), and `init` / `preview` / `explain` / `tidy` / `undo` / `history`.
+- **Contracts written, code to do:** `watch`, `service` (M3), and the M2 commands
+  (`uncovered`, `rules`, `folders`, `keep`, `doctor`). Each file starts with a comment
+  that is the contract to build to. Stubs return `ErrNotImplemented`.
 - The remaining commands print "not built yet (planned for M?)" until their milestone lands.
 
 ## Commands
@@ -39,6 +40,10 @@ make cross    # six platform builds; proves nothing needs cgo or a platform API 
 - **Never run the program, or a test, against the real Downloads, Desktop or
   Documents.** Use `t.TempDir()` or a throwaway folder under `/tmp`. This applies to
   you, an assistant, too: do not "try it" on the user's real folders.
+- **A test that runs `tidy`, `undo` or `history` must redirect the journal**
+  (`t.Setenv("XDG_STATE_HOME", t.TempDir())`) and, if it exercises the trash,
+  `HOME`. Those commands write; a test that forgets would leave entries and
+  trashed files on the machine running it.
 - **No cgo, no network, no deletion outside `internal/apply` and `internal/trash`.**
   `go test ./internal/policy` enforces the last two.
 - **Do not weaken a rule in `docs/safety-model.md`** to make a test or a feature

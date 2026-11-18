@@ -4,9 +4,10 @@
 
 [English](README.md)
 
-> **状态：早期阶段。** `owlsort init`、`preview`、`explain` 已经能用：读配置、扫描文件夹、
-> 打印出下面这样的整理计划，一个文件都不动。`tidy`、`undo`、`history` 会告诉你属于 M1、还没实现。
-> 在 M1 之前不要拿真实文件夹试。想参与的话，从 [docs/roadmap.md](docs/roadmap.md) 开始看。
+> **状态：早期阶段。** 整理在 macOS 上已经跑通全流程：`init`、`preview`、`explain`、
+> `tidy`、`undo`、`history`。Linux 和 Windows 能编译、CI 里跑同一套测试，但还没有人工试过；
+> `rules`/`folders`/`keep` 这些改规则用的命令是 M2，现在直接编辑配置文件。
+> 先在你有备份的文件夹上试。想参与的话，从 [docs/roadmap.md](docs/roadmap.md) 开始看。
 
 `owlsort` 按你能读懂、能编辑的规则，把堆在文件夹里的截图、PDF、安装包、压缩包移到整齐的地方。
 它围绕一个想法：**动手之前先看到结果，任何一次整理都能撤销。**

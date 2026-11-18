@@ -4,10 +4,11 @@
 
 [中文说明](README.zh-CN.md)
 
-> **Status: pre-alpha.** `owlsort init`, `preview` and `explain` work: they read the
-> configuration, scan the folders and print exactly the plan below, moving nothing.
-> `tidy`, `undo` and `history` say which milestone they belong to (M1) and do not run
-> yet. Do not rely on it for real folders until M1. See [docs/roadmap.md](docs/roadmap.md).
+> **Status: pre-alpha.** Tidying works end to end on macOS: `init`, `preview`,
+> `explain`, `tidy`, `undo` and `history`. Linux and Windows build and are covered by
+> the same tests in CI, but have not been run by hand yet, and `tidy` has no
+> filter or `rules`/`folders`/`keep` commands (M2) — you edit the config by hand.
+> Try it on a folder you have a backup of. See [docs/roadmap.md](docs/roadmap.md).
 
 `owlsort` moves the screenshots, PDFs, installers and archives that pile up in your
 folders into tidy places, by rules you can read and edit. It is built around one
@@ -26,7 +27,7 @@ $ owlsort tidy          # shows the same, asks, then moves
 $ owlsort undo          # put the last run back
 ```
 
-*(What `owlsort preview` prints today; `tidy` and `undo` are milestone M1. See [docs/commands.md](docs/commands.md).)*
+*(What `owlsort preview` prints today. `tidy` shows the same and then asks. See [docs/commands.md](docs/commands.md).)*
 
 ## Principles
 
