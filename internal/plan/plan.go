@@ -28,6 +28,30 @@ const (
 	SkipChanged         SkipReason = "changed"          // not what the preview saw any more
 )
 
+// Text is how a skip reason is said to a person. It lives here so `preview`,
+// `explain` and any later report cannot word the same reason differently.
+func (r SkipReason) Text() string {
+	switch r {
+	case SkipInCodeProject:
+		return "in a code project"
+	case SkipInNotesLibrary:
+		return "in a notes library"
+	case SkipKept:
+		return "kept"
+	case SkipDownloading:
+		return "still downloading"
+	case SkipHidden:
+		return "hidden"
+	case SkipConflict:
+		return "a name clash"
+	case SkipNeedsForeground:
+		return "needs a foreground run"
+	case SkipChanged:
+		return "changed since the preview"
+	}
+	return string(r)
+}
+
 // Item is one decided step.
 type Item struct {
 	Source      string `json:"source"`
@@ -50,8 +74,13 @@ type Folder struct {
 	Skipped []Skipped `json:"skipped"`
 }
 
+// Version is the version of the --json shape in docs/commands.md. Bump it when
+// a field is renamed or removed; adding a field does not need a bump.
+const Version = 1
+
 // Plan is the plan for every folder asked about.
 type Plan struct {
+	Version int      `json:"version"`
 	Folders []Folder `json:"folders"`
 }
 

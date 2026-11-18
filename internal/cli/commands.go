@@ -1,6 +1,17 @@
 package cli
 
-import "github.com/spf13/cobra"
+import (
+	"fmt"
+
+	"github.com/spf13/cobra"
+
+	"github.com/08820048/owlsort-cli/internal/config"
+	"github.com/08820048/owlsort-cli/internal/exitcode"
+	"github.com/08820048/owlsort-cli/internal/i18n"
+	"github.com/08820048/owlsort-cli/internal/output"
+	"github.com/08820048/owlsort-cli/internal/protect"
+	"github.com/08820048/owlsort-cli/internal/rules"
+)
 
 // Every command below is a stub: the arguments are real (so `--help` and the
 // shell completions can be reviewed), the work is not. Each names its milestone.
@@ -10,7 +21,25 @@ func initCmd(g *flags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Create the configuration file with the built-in rules",
-		RunE:  func(*cobra.Command, []string) error { return notImplemented("init", "M0") },
+		Long: `Writes the configuration with the built-in rules, then stops. It never
+overwrites a file that is already there: edit the existing one instead.`,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cfg := config.Default(i18n.Resolve(g.Lang))
+			if len(folders) > 0 {
+				cfg.Folders = folders
+			}
+			path, err := configPath(g)
+			if err != nil {
+				return &ExitError{Code: exitcode.Usage, Message: err.Error()}
+			}
+			if err := config.WriteNew(path, cfg); err != nil {
+				return &ExitError{Code: exitcode.Error, Message: err.Error()}
+			}
+			out := cmd.OutOrStdout()
+			fmt.Fprintf(out, "Wrote %s\n", path)
+			fmt.Fprintln(out, "Next: `owlsort preview` shows what would be tidied. Nothing moves until you run `owlsort tidy`.")
+			return nil
+		},
 	}
 	cmd.Flags().StringSliceVar(&folders, "folders", nil, "folders to watch (default: ~/Downloads and ~/Desktop)")
 	return cmd
@@ -20,7 +49,23 @@ func previewCmd(g *flags) *cobra.Command {
 	return &cobra.Command{
 		Use:   "preview [path...]",
 		Short: "Show what would be tidied, and where it would go (moves nothing)",
-		RunE:  func(*cobra.Command, []string) error { return notImplemented("preview", "M0") },
+		Long: `Shows the same plan "tidy" would carry out, and moves nothing. Use it as
+often as you like: it is a read-only view of your own folders.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			s, err := load(g)
+			if err != nil {
+				return err
+			}
+			p, err := planFor(s, args, false)
+			if err != nil {
+				return &ExitError{Code: exitcode.Error, Message: err.Error()}
+			}
+			out := cmd.OutOrStdout()
+			if g.JSON {
+				return output.WriteJSON(out, p)
+			}
+			return output.Preview(out, p, g.Options)
+		},
 	}
 }
 
@@ -65,8 +110,28 @@ func explainCmd(g *flags) *cobra.Command {
 	return &cobra.Command{
 		Use:   "explain <file>",
 		Short: "Say why a file would (or would not) be tidied",
-		Args:  cobra.ExactArgs(1),
-		RunE:  func(*cobra.Command, []string) error { return notImplemented("explain", "M0") },
+		Long: `Runs the same rules as "preview" over one file and reports the reason
+instead of a plan, so the two can never disagree.`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if g.JSON {
+				return &ExitError{Code: exitcode.Usage, Message: "explain has no --json shape yet (see docs/commands.md)"}
+			}
+			s, err := load(g)
+			if err != nil {
+				return err
+			}
+			f, err := fileFor(config.ExpandHome(args[0]))
+			if err != nil {
+				return &ExitError{Code: exitcode.Error, Message: err.Error()}
+			}
+			text, err := rules.Explain(f, s.cfg, protect.New(s.cfg), s.env)
+			if err != nil {
+				return &ExitError{Code: exitcode.Usage, Message: err.Error()}
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), text)
+			return nil
+		},
 	}
 }
 
