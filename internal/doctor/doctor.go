@@ -22,17 +22,17 @@ import (
 
 // Check is one thing that was looked at.
 type Check struct {
-	Name    string // what was checked, in a few words
-	Detail  string // the answer: a path, a count, or why it failed
-	OK      bool
-	Warning bool // usable, but worth knowing
+	Name    string `json:"name"`   // what was checked, in a few words
+	Detail  string `json:"detail"` // the answer: a path, a count, or why it failed
+	OK      bool   `json:"ok"`
+	Warning bool   `json:"warning,omitempty"` // usable, but worth knowing
 }
 
 // Report is everything doctor found.
 type Report struct {
-	ConfigPath  string
-	JournalPath string
-	Checks      []Check
+	ConfigPath  string  `json:"config_path,omitempty"`
+	JournalPath string  `json:"journal_path,omitempty"`
+	Checks      []Check `json:"checks"`
 }
 
 // Failed reports whether anything makes the program unusable.

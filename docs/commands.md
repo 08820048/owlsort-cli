@@ -134,7 +134,8 @@ The trash is only a **failure** when some enabled rule sends a file to it; witho
 such a rule it is a warning, because reporting a failure for something the
 configuration never uses sends the user after a problem they do not have.
 `doctor` changes nothing: it creates no folder and writes no journal, so it can be
-run to find out what is wrong.
+run to find out what is wrong. `--json` is `{config_path, journal_path, checks:
+[{name, detail, ok, warning}]}`.
 
 ### `preview`, for people
 
