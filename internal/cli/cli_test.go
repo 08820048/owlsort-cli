@@ -272,11 +272,14 @@ func withStdin(t *testing.T, terminal bool, answer string, args ...string) (stri
 	return out.String(), err
 }
 
-// stateDir keeps the journal of a test out of the real one.
+// stateDir keeps the journal of a test out of the real one. Both variables are
+// set because the journal follows XDG_STATE_HOME on macOS and Linux and
+// LOCALAPPDATA on Windows; both give the same <dir>/owlsort/journal.jsonl.
 func stateDir(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 	t.Setenv("XDG_STATE_HOME", dir)
+	t.Setenv("LOCALAPPDATA", dir)
 	return dir
 }
 
