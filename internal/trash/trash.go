@@ -56,3 +56,7 @@ func renameInto(path, dir string) (string, error) {
 func isCrossDevice(err error) bool {
 	return errors.Is(err, errCrossDevice)
 }
+
+// Available reports whether this platform's trash can be used at all, so
+// `doctor` can say so before anything is moved. It checks; it creates nothing.
+func Available() error { return available() }
