@@ -29,8 +29,8 @@ Goal: `owlsort init && owlsort preview` is correct on all three systems.
 
 Done when: on a temporary folder of mixed files, `preview` lists the right moves and the right skips on macOS, Linux and Windows, and `explain` agrees with it for every file.
 
-State: the engine is written and tested on macOS (2026-11-18). The CI run on Linux and
-Windows is what closes this milestone.
+State: **met** (2026-11-18). The same tests pass on macOS, Linux and Windows in CI, and
+`explain` is checked against `preview` file by file, which is the acceptance condition.
 
 ## M1: tidy and undo
 
@@ -46,9 +46,9 @@ Goal: tidy, undo, restart the terminal, the history is still there.
 
 Done when: tidy then undo restores a folder exactly, on all three systems, including after a clash and after the user moved a file in between.
 
-State: written and tested on macOS (2026-11-18); CI on Linux and Windows is what
-closes it. Two things cannot be checked from this machine and are listed here so
-they are not forgotten:
+State: **met on all three systems** (2026-11-18): tidy then undo restores a folder
+exactly, including after a clash and after a file changed in between. Two things
+cannot be checked by a CI runner and are listed here so they are not forgotten:
 
 - **A real cross-volume move** (safety rule 11). Mount something, then
   `owlsort tidy` a file from the other volume; the copy must appear before the
