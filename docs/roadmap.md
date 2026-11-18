@@ -60,22 +60,22 @@ cannot be checked by a CI runner and are listed here so they are not forgotten:
 
 ## M2: managing rules
 
-- [ ] `rules list/show/enable/disable/edit`, `folders`, `keep`
+- [x] `rules list/show/enable/disable/edit`, `folders`, `keep`
 - [x] `uncovered`: the loose files no rule takes, grouped by extension
 - [x] `doctor`: configuration, journal, trash, watched folders
 - [x] `rules check`: missing values, bad regexes, shadowed rules, destinations that climb out
+- [x] A commented template that `init` writes, generated from `Default` (decisions.md, D13)
 - [ ] Shell completion verified for bash, zsh, fish, PowerShell
 
 Done when: `rules check` finds a rule that an earlier one shadows, and a
 configuration with a destination that climbs out, without ever reporting a rule
 that is reachable.
 
-State: the three read-only commands are done and tested (2026-11-18). What is left
-is the set that **writes** the configuration. That needs a decision first: writing
-it back through `config.Marshal` would throw away the user's comments, and this
-project's plain-TOML argument is partly that comments are allowed. Either the
-commands edit the text in place, or they say they will rewrite the file and the
-user keeps a copy in git.
+State: **met** (2026-11-18) except shell completion, which needs a person at four
+different shells. The commands that change the configuration edit its text rather
+than re-encoding it, so a `rules disable` cannot flatten a file the user has been
+curating (decisions.md, D12). `init` writes a commented template for the same
+reason (D13).
 
 ## M3: watching
 

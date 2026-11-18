@@ -55,11 +55,11 @@ A public interface; scripts rely on them (`internal/exitcode`).
 
 | Command | |
 |---|---|
-| `owlsort rules list \| show <name> \| enable <name> \| disable <name>` | (M2) |
-| `owlsort rules edit` | open the config in `$EDITOR`, validate on save (M2) |
+| `owlsort rules list \| show <name> \| enable <name> \| disable <name>` | see and switch the rules |
+| `owlsort rules edit` | open the config in `$VISUAL`/`$EDITOR`, check it when the editor exits |
 | `owlsort rules check` | missing values, bad regexes, rules shadowed by earlier ones, destinations that climb out (M2) |
-| `owlsort folders list \| add <path> \| remove <path>` | watched folders; removing moves nothing (M2) |
-| `owlsort keep list \| add <path> \| remove <path>` | never touched (M2) |
+| `owlsort folders list \| add <path> \| remove <path>` | watched folders; removing moves nothing |
+| `owlsort keep list \| add <path> \| remove <path>` | never touched |
 | `owlsort doctor` | config readable, folders exist, journal writable, trash works |
 | `owlsort completion bash\|zsh\|fish\|powershell` | shell completion (free from cobra) |
 
@@ -74,6 +74,32 @@ A public interface; scripts rely on them (`internal/exitcode`).
 background, unless `--force`.
 
 ## Output
+
+### Changing the configuration
+
+`rules enable`, `rules disable`, `folders add|remove` and `keep add|remove` edit the
+configuration file **as text**: your comments, your order, your quoting and your
+spacing stay exactly as they were (decisions.md, D12). Before anything is written
+the result is parsed again, and the write is refused if the file would not load or
+would not hold the same rules. The file is replaced in one step, and a symlink — a
+config kept in dotfiles — is followed rather than replaced.
+
+- `rules enable`/`disable` are idempotent: a rule that is already in that state
+  writes nothing and says so.
+- `folders add` refuses a folder that is not there, and `keep add` refuses a path
+  that is not there: the list only matters if the program can look at what it names,
+  and a typo would otherwise watch — or protect — nothing, silently.
+- Both compare paths as paths, so adding `/Users/me/Downloads` when `~/Downloads`
+  is already listed says "already there" instead of adding a second entry.
+- `folders remove` and `keep remove` move nothing; they only change what the program
+  looks at.
+
+### `rules edit`
+
+Opens the file in `$VISUAL`, else `$EDITOR`, else `vi`/`nano`, and checks it the
+moment the editor exits — an editor's save cannot be hooked, so that is the closest
+"validate on save" gets. Your edit is never thrown away: a file that no longer loads
+is reported and left as you saved it.
 
 ### `rules check`
 

@@ -68,10 +68,14 @@ func TestNoNetwork(t *testing.T) {
 
 // Rule 4: nothing deletes a user's file except the code that does it on
 // purpose, and that code is small and reviewed: `apply` (after a verified
-// cross-volume copy, and to clean up its own half-written copy) and `trash`.
+// cross-volume copy, and to clean up its own half-written copy), `trash`, and
+// `atomicfile` — whose only removal is the temporary file it just created beside
+// the one it is replacing.
 func TestOnlyApplyAndTrashRemoveFiles(t *testing.T) {
 	allowed := func(name string) bool {
-		return strings.HasPrefix(name, "internal/apply/") || strings.HasPrefix(name, "internal/trash/")
+		return strings.HasPrefix(name, "internal/apply/") ||
+			strings.HasPrefix(name, "internal/trash/") ||
+			strings.HasPrefix(name, "internal/atomicfile/")
 	}
 	for name, f := range sources(t) {
 		if allowed(name) {
@@ -87,7 +91,7 @@ func TestOnlyApplyAndTrashRemoveFiles(t *testing.T) {
 				return true
 			}
 			if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "os" && (sel.Sel.Name == "Remove" || sel.Sel.Name == "RemoveAll") {
-				t.Errorf("%s calls os.%s: only internal/apply and internal/trash may remove files (docs/safety-model.md, rule 4)", name, sel.Sel.Name)
+				t.Errorf("%s calls os.%s: only internal/apply, internal/trash and internal/atomicfile may remove files (docs/safety-model.md, rule 4)", name, sel.Sel.Name)
 			}
 			return true
 		})

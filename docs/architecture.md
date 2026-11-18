@@ -46,7 +46,7 @@ config.toml ──► config ──┐
 | Package | Role | State |
 |---|---|---|
 | `cmd/owlsort` | `main`: builds the command tree, maps errors to exit codes | done |
-| `internal/cli` | cobra commands and flags; parse, call, print; **no logic** | `init`, `preview`, `explain`, `tidy`, `undo`, `history`, `uncovered`, `doctor`, `rules check` done; the rest are stubs |
+| `internal/cli` | cobra commands and flags; parse, call, print; **no logic** | everything except `watch` and `service` (M3) |
 | `internal/config` | the TOML model, parsing, validation, built-in rules | **done**, tested |
 | `internal/category` | extension → category (`image`, `document`, …) | **done**, tested |
 | `internal/pathvars` | `{date}` `{year}` … expansion; `FixedPrefix` | **done**, tested |
@@ -64,9 +64,12 @@ config.toml ──► config ──┐
 | `internal/output` | tables for people, JSON for scripts | text preview and JSON done; explain has no JSON shape yet |
 | `internal/naming` | a name that does not collide (`report 2.pdf`) | **done**, tested |
 | `internal/check` | what is wrong with a configuration (`rules check`) | **done**, tested |
+| `internal/tomledit` | edit a few keys of a TOML file as text, keeping comments | **done**, tested |
+| `internal/atomicfile` | replace a file in one step | **done**, tested |
 | `internal/doctor` | will this work on this machine | **done**, tested |
 
-Dependency direction: `cli → {rules, apply, scan, journal, output, config}`;
+Dependency direction: `cli → {rules, apply, scan, journal, output, config, check, doctor}`;
+`config → tomledit, atomicfile`;
 `rules → {config, plan, protect, scan, pathvars, category}`; leaf packages
 (`category`, `i18n`, `exitcode`, `plan`) import nothing of ours. `rules` and
 `plan` must never import `os` for anything that touches files.

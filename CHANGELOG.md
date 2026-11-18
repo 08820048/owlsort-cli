@@ -8,6 +8,21 @@ All notable changes are listed here. The format follows
 
 ### Added
 
+- `rules list`, `rules show`, `rules enable`, `rules disable` and `rules edit`: see the
+  rules, switch one off without deleting it, or open the file in `$EDITOR` and have it
+  checked when the editor exits.
+- `folders add|remove` and `keep add|remove`: change which folders are watched and which
+  paths are never touched. A path that is not there is refused, because a typo would
+  otherwise watch (or protect) nothing, silently.
+- These commands edit the configuration **as text**, so comments, order and spacing
+  survive (`internal/tomledit`). Every write is re-parsed first and refused if the file
+  would not load or would not hold the same rules; the replacement is atomic and a
+  symlink is followed rather than replaced (decisions.md, D12).
+- `owlsort init` now writes a commented template in the documented style instead of
+  `config.Marshal` output, generated from the built-in rules and held to them by a test
+  (decisions.md, D13).
+- `internal/atomicfile`: replace a file in one step, so a write is never half done.
+
 - `rules check`: every problem with a configuration, one per line — a condition that
   tests two things, a bad regex, a size that is not a size, a destination that climbs
   out, a name used twice, and a rule no file can reach because an earlier one already

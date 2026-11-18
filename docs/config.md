@@ -1,7 +1,8 @@
 # Configuration
 
-`owlsort init` writes the file with the built-in rules; after that it is yours to
-edit. The model, parsing and validation live in `internal/config`, which is the
+`owlsort init` writes the file with the built-in rules, already laid out and
+commented. `rules enable|disable`, `folders` and `keep` change it for you; they edit
+the text, so your own comments and ordering survive. The model, parsing and validation live in `internal/config`, which is the
 source of truth; this page describes it.
 
 ## Location

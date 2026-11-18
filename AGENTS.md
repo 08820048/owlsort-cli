@@ -22,11 +22,10 @@ code, no shared data, no feature parity required. Written in Go, no cgo, no netw
   never-overwrite write), `category`, `pathvars`, `i18n`, `exitcode`, `policy`, `naming`,
   `scan`, `protect`, `rules` (M0), `journal`, `apply`, `trash`, `output` (text preview +
   JSON), and `init` / `preview` / `explain` / `tidy` / `undo` / `history`.
-- **Done since:** `internal/check` (`rules check`), `internal/doctor`, `rules.Uncovered`.
-- **Contracts written, code to do:** `watch`, `service` (M3), and the M2 commands that
-  write the configuration (`rules list/show/enable/disable/edit`, `folders`, `keep`).
-  Each file starts with a comment that is the contract to build to. Stubs return
-  `ErrNotImplemented`.
+- **Done since:** `internal/check` (`rules check`), `internal/doctor`, `rules.Uncovered`,
+  `internal/tomledit`, `internal/atomicfile`, and every command in M2.
+- **Contracts written, code to do:** `watch`, `service` (M3). Each file starts with a
+  comment that is the contract to build to. Stubs return `ErrNotImplemented`.
 - The remaining commands print "not built yet (planned for M?)" until their milestone lands.
 
 ## Commands
@@ -54,6 +53,10 @@ make cross    # six platform builds; proves nothing needs cgo or a platform API 
 - **Keep `rules` and `plan` pure:** no disk, no clock, no environment.
 - **Exit codes and JSON field names are a public interface.**
 - **Do not commit** real configs, journals or file lists from a test run.
+- **A command that changes the configuration edits the text** (`internal/tomledit`),
+  never `config.Marshal`: re-encoding drops the user's comments (decisions.md, D12).
+  Go through `config.Edit`, which re-parses the result and refuses to write a file
+  that would not load.
 
 ## Adding things
 
