@@ -1,0 +1,16 @@
+# Build output
+/dist/
+/owlsort
+/owlsort.exe
+*.test
+coverage.out
+
+# Editors and systems
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Local scratch: never commit real folders, journals or configs from a test run
+/tmp/
+/scratch/

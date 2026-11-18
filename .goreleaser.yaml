@@ -1,0 +1,45 @@
+# GoReleaser configuration (v2). Not yet exercised: the first run of
+# `make snapshot` may need small fixes. See docs/roadmap.md, milestone M4.
+version: 2
+
+project_name: owlsort
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: owlsort
+    main: ./cmd/owlsort
+    binary: owlsort
+    env:
+      - CGO_ENABLED=0
+    goos: [darwin, linux, windows]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.ShortCommit}} -X main.date={{.Date}}
+
+archives:
+  - formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+      - TRADEMARK.md
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  use: github
+  groups:
+    - title: Added
+      regexp: '^feat'
+    - title: Fixed
+      regexp: '^fix'
+
+# TODO(M4): macOS signing and notarization (Developer ID + notarytool) for the
+# darwin binaries, the Homebrew tap (brews:), Scoop (scoops:) and winget.
