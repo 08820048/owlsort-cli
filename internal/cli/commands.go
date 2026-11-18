@@ -139,7 +139,7 @@ func uncoveredCmd(g *flags) *cobra.Command {
 	return &cobra.Command{
 		Use:   "uncovered [path...]",
 		Short: "List files no rule covers, grouped by extension",
-		RunE:  func(*cobra.Command, []string) error { return notImplemented("uncovered", "M2") },
+		RunE:  func(cmd *cobra.Command, args []string) error { return uncovered(cmd, args, g) },
 	}
 }
 
@@ -157,7 +157,15 @@ func rulesCmd(g *flags) *cobra.Command {
 		sub("enable <name>", "Turn a rule on", "M2", cobra.ExactArgs(1)),
 		sub("disable <name>", "Turn a rule off", "M2", cobra.ExactArgs(1)),
 		sub("edit", "Open the configuration in $EDITOR and check it on save", "M2", cobra.NoArgs),
-		sub("check", "Find mistakes: missing values, bad regexes, rules shadowed by earlier ones", "M2", cobra.NoArgs),
+		&cobra.Command{
+			Use:   "check",
+			Short: "Find mistakes: missing values, bad regexes, rules shadowed by earlier ones",
+			Long: `Reads the configuration and reports what is wrong with it, one problem per
+line. A mistake makes the command exit with code 1; a warning (a rule no file can
+reach, because an earlier rule already takes everything it would) does not.`,
+			Args: cobra.NoArgs,
+			RunE: func(cmd *cobra.Command, _ []string) error { return rulesCheck(cmd, g) },
+		},
 	)
 	return cmd
 }
@@ -227,6 +235,6 @@ func doctorCmd(g *flags) *cobra.Command {
 	return &cobra.Command{
 		Use:   "doctor",
 		Short: "Check the setup: configuration, folders, trash, permissions",
-		RunE:  func(*cobra.Command, []string) error { return notImplemented("doctor", "M2") },
+		RunE:  func(cmd *cobra.Command, _ []string) error { return doctorRun(cmd, g) },
 	}
 }

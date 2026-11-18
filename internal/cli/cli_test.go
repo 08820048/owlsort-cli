@@ -47,13 +47,13 @@ func TestVersion(t *testing.T) {
 }
 
 func TestUnbuiltCommandsSayWhenTheyComeAndExitWithAnError(t *testing.T) {
-	// uncovered lands in M2; it must say so rather than pretend to have run.
-	_, err := run("uncovered")
+	// watch lands in M3; it must say so rather than pretend to have run.
+	_, err := run("watch")
 	var coded *ExitError
 	if !errors.As(err, &coded) {
 		t.Fatalf("got %v", err)
 	}
-	if coded.Code != exitcode.Error || !strings.Contains(coded.Message, "M2") {
+	if coded.Code != exitcode.Error || !strings.Contains(coded.Message, "M3") {
 		t.Errorf("%+v", coded)
 	}
 }
@@ -532,5 +532,166 @@ func TestTidyNeverOverwritesAndExitsWithThree(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(folder, "report-final.pdf")); err != nil {
 		t.Error("the file the strategy said to skip was moved anyway")
+	}
+}
+
+// writeConfigText writes a configuration from TOML source, so a test can be
+// deliberately wrong.
+func writeConfigText(t *testing.T, source string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(path, []byte(source), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestRulesCheckSaysNothingAboutAGoodConfiguration(t *testing.T) {
+	folder := t.TempDir()
+	out, err := withStdin(t, false, "", "rules", "check", "--config", writeConfig(t, folder))
+	if err != nil {
+		t.Fatalf("%v: %s", err, out)
+	}
+	if !strings.Contains(out, "no problems found") {
+		t.Errorf("said %q", out)
+	}
+}
+
+func TestRulesCheckFailsOnAMistake(t *testing.T) {
+	path := writeConfigText(t, `conflict = "rename"
+[[rule]]
+name = "bad"
+when = [{ ext = ["pdf"] }]
+move_to = "../outside"
+`)
+	out, err := withStdin(t, false, "", "rules", "check", "--config", path)
+	if code := exitCodeOf(err); code != exitcode.Error {
+		t.Fatalf("exit code = %d, want %d (%v)\n%s", code, exitcode.Error, err, out)
+	}
+	if !strings.Contains(out, "climbs out") {
+		t.Errorf("said %q", out)
+	}
+}
+
+func TestRulesCheckWarnsAboutAShadowedRuleWithoutFailing(t *testing.T) {
+	folder := t.TempDir()
+	path := writeConfigText(t, `conflict = "rename"
+folders = ["`+folder+`"]
+[[rule]]
+name = "PDFs first"
+when = [{ ext = ["pdf"] }]
+move_to = "A"
+[[rule]]
+name = "Documents"
+when = [{ ext = ["pdf", "docx"] }]
+move_to = "B"
+`)
+	out, err := withStdin(t, false, "", "rules", "check", "--config", path)
+	if err != nil {
+		t.Fatalf("a warning must not fail: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "warning") || !strings.Contains(out, `"Documents"`) {
+		t.Errorf("said %q", out)
+	}
+	if !strings.Contains(out, "does not stop the program") {
+		t.Errorf("it does not say the warning is harmless: %q", out)
+	}
+}
+
+func TestRulesCheckReportsAFileThatIsNotValidTOML(t *testing.T) {
+	path := writeConfigText(t, "this is not toml = = =\n")
+	out, err := withStdin(t, false, "", "rules", "check", "--config", path)
+	if code := exitCodeOf(err); code != exitcode.Error {
+		t.Fatalf("exit code = %d, want %d\n%s", code, exitcode.Error, out)
+	}
+	if !strings.Contains(out, "error") {
+		t.Errorf("said %q", out)
+	}
+}
+
+func TestRulesCheckJSON(t *testing.T) {
+	folder := t.TempDir()
+	path := writeConfigText(t, `conflict = "rename"
+folders = ["`+folder+`"]
+[[rule]]
+name = "a"
+when = [{ ext = ["pdf"] }]
+move_to = "A"
+[[rule]]
+name = "b"
+when = [{ ext = ["pdf"] }]
+move_to = "B"
+`)
+	out, err := withStdin(t, false, "", "rules", "check", "--json", "--config", path)
+	if err != nil {
+		t.Fatalf("%v: %s", err, out)
+	}
+	var problems []struct {
+		Severity string `json:"severity"`
+		Rule     string `json:"rule"`
+		Message  string `json:"message"`
+	}
+	if err := json.Unmarshal([]byte(out), &problems); err != nil {
+		t.Fatalf("%v:\n%s", err, out)
+	}
+	if len(problems) != 1 || problems[0].Severity != "warning" || problems[0].Rule != "b" {
+		t.Errorf("got %+v", problems)
+	}
+}
+
+func TestUncoveredListsWhatNoRuleTakes(t *testing.T) {
+	folder := t.TempDir()
+	makeFile(t, filepath.Join(folder, "report-final.pdf"), 1024)
+	makeFile(t, filepath.Join(folder, "one.weird"), 10)
+	makeFile(t, filepath.Join(folder, "two.weird"), 10)
+
+	out, err := withStdin(t, false, "", "uncovered", "--config", writeConfig(t, folder))
+	if code := exitCodeOf(err); code != exitcode.Partial {
+		t.Fatalf("exit code = %d, want %d (%v)\n%s", code, exitcode.Partial, err, out)
+	}
+	if !strings.Contains(out, "weird") || strings.Contains(out, "report-final.pdf") {
+		t.Errorf("said %q", out)
+	}
+}
+
+func TestUncoveredIsQuietWhenEverythingIsCovered(t *testing.T) {
+	folder := t.TempDir()
+	makeFile(t, filepath.Join(folder, "report-final.pdf"), 1024)
+	stateDir(t)
+
+	out, err := withStdin(t, false, "", "uncovered", "--config", writeConfig(t, folder))
+	if err != nil {
+		t.Fatalf("%v: %s", err, out)
+	}
+	if !strings.Contains(out, "Every loose file is covered") {
+		t.Errorf("said %q", out)
+	}
+}
+
+func TestDoctorOnAHealthySetup(t *testing.T) {
+	stateDir(t)
+	folder := t.TempDir()
+	makeFile(t, filepath.Join(folder, "report-final.pdf"), 1024)
+
+	out, err := withStdin(t, false, "", "doctor", "--config", writeConfig(t, folder))
+	if err != nil {
+		t.Fatalf("%v:\n%s", err, out)
+	}
+	for _, want := range []string{"configuration", "journal", "watched folder", "Ready"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("doctor does not mention %q:\n%s", want, out)
+		}
+	}
+}
+
+func TestDoctorFailsWhenTheConfigurationIsMissing(t *testing.T) {
+	stateDir(t)
+	missing := filepath.Join(t.TempDir(), "nope.toml")
+	out, err := withStdin(t, false, "", "doctor", "--config", missing)
+	if code := exitCodeOf(err); code != exitcode.Error {
+		t.Fatalf("exit code = %d, want %d\n%s", code, exitcode.Error, out)
+	}
+	if !strings.Contains(out, "FAIL") {
+		t.Errorf("said %q", out)
 	}
 }

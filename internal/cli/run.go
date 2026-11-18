@@ -67,6 +67,18 @@ func languageSetting(g *flags, cfg config.Config) string {
 // planFor builds the plan for the folders named on the command line, or for the
 // configured ones. Nothing here moves a file.
 func planFor(s settings, args []string, unattended bool) (plan.Plan, error) {
+	files, err := scanFor(s, args)
+	if err != nil {
+		return plan.Plan{}, err
+	}
+	env := s.env
+	env.Unattended = unattended
+	return rules.Build(files, s.cfg, protect.New(s.cfg), env)
+}
+
+// scanFor lists the files of the folders named on the command line, or of the
+// configured ones.
+func scanFor(s settings, args []string) ([]scan.File, error) {
 	folders := args
 	if len(folders) == 0 {
 		folders = s.cfg.Folders
@@ -96,14 +108,11 @@ func planFor(s settings, args []string, unattended bool) (plan.Plan, error) {
 		seen[path] = true
 		listed, err := scan.Folder(path, scan.Options{Subfolders: subfolders})
 		if err != nil {
-			return plan.Plan{}, err
+			return nil, err
 		}
 		files = append(files, listed...)
 	}
-
-	env := s.env
-	env.Unattended = unattended
-	return rules.Build(files, s.cfg, protect.New(s.cfg), env)
+	return files, nil
 }
 
 // fileFor describes one file the way a scan of its folder would.
