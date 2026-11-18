@@ -31,13 +31,9 @@ func DefaultPath() (string, error) {
 	return filepath.Join(home, ".config", "owlsort", "config.toml"), nil
 }
 
-// WriteNew writes c to path, creating the folder. It never overwrites: `init`
+// WriteNew writes data to path, creating the folder. It never overwrites: `init`
 // must not destroy a configuration the user has edited.
-func WriteNew(path string, c Config) error {
-	data, err := Marshal(c)
-	if err != nil {
-		return fmt.Errorf("config: %w", err)
-	}
+func WriteNew(path string, data []byte) error {
 	if dir := filepath.Dir(path); dir != "" {
 		if err := os.MkdirAll(dir, 0o700); err != nil {
 			return fmt.Errorf("config: %w", err)

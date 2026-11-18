@@ -24,15 +24,12 @@ func initCmd(g *flags) *cobra.Command {
 		Long: `Writes the configuration with the built-in rules, then stops. It never
 overwrites a file that is already there: edit the existing one instead.`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			cfg := config.Default(i18n.Resolve(g.Lang))
-			if len(folders) > 0 {
-				cfg.Folders = folders
-			}
 			path, err := configPath(g)
 			if err != nil {
 				return &ExitError{Code: exitcode.Usage, Message: err.Error()}
 			}
-			if err := config.WriteNew(path, cfg); err != nil {
+			template := config.Template(i18n.Resolve(g.Lang), folders)
+			if err := config.WriteNew(path, template); err != nil {
 				return &ExitError{Code: exitcode.Error, Message: err.Error()}
 			}
 			out := cmd.OutOrStdout()
@@ -144,19 +141,53 @@ func uncoveredCmd(g *flags) *cobra.Command {
 }
 
 func rulesCmd(g *flags) *cobra.Command {
-	cmd := &cobra.Command{Use: "rules", Short: "List, switch and check the rules"}
-	sub := func(use, short, milestone string, args cobra.PositionalArgs) *cobra.Command {
-		return &cobra.Command{
-			Use: use, Short: short, Args: args,
-			RunE: func(c *cobra.Command, _ []string) error { return notImplemented("rules "+c.Name(), milestone) },
-		}
+	cmd := &cobra.Command{
+		Use:   "rules",
+		Short: "List, show, switch and check the rules",
+		Long: `Rules live in the configuration file, in the order they are tried. These
+commands read and change that file; they edit it as text, so your comments,
+your order and your spelling of each rule stay exactly as you wrote them.`,
 	}
 	cmd.AddCommand(
-		sub("list", "List the rules and whether each is on", "M2", cobra.NoArgs),
-		sub("show <name>", "Show one rule", "M2", cobra.ExactArgs(1)),
-		sub("enable <name>", "Turn a rule on", "M2", cobra.ExactArgs(1)),
-		sub("disable <name>", "Turn a rule off", "M2", cobra.ExactArgs(1)),
-		sub("edit", "Open the configuration in $EDITOR and check it on save", "M2", cobra.NoArgs),
+		&cobra.Command{
+			Use:   "list",
+			Short: "List the rules and whether each is on",
+			Args:  cobra.NoArgs,
+			RunE:  func(cmd *cobra.Command, _ []string) error { return rulesList(cmd, g) },
+		},
+		&cobra.Command{
+			Use:   "show <name>",
+			Short: "Show one rule",
+			Args:  cobra.ExactArgs(1),
+			RunE: func(cmd *cobra.Command, args []string) error {
+				return rulesShow(cmd, args[0], g)
+			},
+		},
+		&cobra.Command{
+			Use:   "enable <name>",
+			Short: "Turn a rule on",
+			Args:  cobra.ExactArgs(1),
+			RunE: func(cmd *cobra.Command, args []string) error {
+				return rulesSet(cmd, args[0], true, g)
+			},
+		},
+		&cobra.Command{
+			Use:   "disable <name>",
+			Short: "Turn a rule off",
+			Args:  cobra.ExactArgs(1),
+			RunE: func(cmd *cobra.Command, args []string) error {
+				return rulesSet(cmd, args[0], false, g)
+			},
+		},
+		&cobra.Command{
+			Use:   "edit",
+			Short: "Open the configuration in $EDITOR and check it when you are done",
+			Long: `Opens the configuration file in $VISUAL, or $EDITOR, or an editor this
+machine has. When the editor exits the file is checked and any problem is
+reported; the file is never thrown away, so a half-finished edit is still yours.`,
+			Args: cobra.NoArgs,
+			RunE: func(cmd *cobra.Command, _ []string) error { return rulesEdit(cmd, g) },
+		},
 		&cobra.Command{
 			Use:   "check",
 			Short: "Find mistakes: missing values, bad regexes, rules shadowed by earlier ones",
@@ -171,33 +202,78 @@ reach, because an earlier rule already takes everything it would) does not.`,
 }
 
 func foldersCmd(g *flags) *cobra.Command {
-	cmd := &cobra.Command{Use: "folders", Short: "List, add and remove watched folders"}
-	sub := func(use, short string, args cobra.PositionalArgs) *cobra.Command {
-		return &cobra.Command{
-			Use: use, Short: short, Args: args,
-			RunE: func(c *cobra.Command, _ []string) error { return notImplemented("folders "+c.Name(), "M2") },
-		}
+	cmd := &cobra.Command{
+		Use:   "folders",
+		Short: "List, add and remove watched folders",
+		Long: `A watched folder is one the program looks at: only its top level is tidied
+unless a rule asks for subfolders. Removing a folder from the list moves nothing;
+it only stops the program looking there.`,
 	}
 	cmd.AddCommand(
-		sub("list", "List watched folders", cobra.NoArgs),
-		sub("add <path>", "Watch a folder", cobra.ExactArgs(1)),
-		sub("remove <path>", "Stop watching a folder (moves nothing)", cobra.ExactArgs(1)),
+		&cobra.Command{
+			Use:   "list",
+			Short: "List watched folders",
+			Args:  cobra.NoArgs,
+			RunE: func(cmd *cobra.Command, _ []string) error {
+				return listStrings(cmd, "folders", "Watched folders", "none yet: `owlsort folders add ~/Downloads`", g)
+			},
+		},
+		&cobra.Command{
+			Use:   "add <path>",
+			Short: "Watch a folder",
+			Args:  cobra.ExactArgs(1),
+			RunE: func(cmd *cobra.Command, args []string) error {
+				return addString(cmd, "folders", args[0], g)
+			},
+		},
+		&cobra.Command{
+			Use:   "remove <path>",
+			Short: "Stop watching a folder (moves nothing)",
+			Args:  cobra.ExactArgs(1),
+			RunE: func(cmd *cobra.Command, args []string) error {
+				return removeString(cmd, "folders", args[0], g)
+			},
+		},
 	)
 	return cmd
 }
 
 func keepCmd(g *flags) *cobra.Command {
-	cmd := &cobra.Command{Use: "keep", Short: "Files and folders that are never touched"}
-	sub := func(use, short string, args cobra.PositionalArgs) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "keep",
+		Short: "Files and folders that are never touched",
+		Long: `Everything on this list is left alone, and so is everything inside it. It is
+the strongest promise the program makes about a file, so it is checked when the
+entry is added rather than at the next run: a typo here would protect nothing.`,
+	}
+	add := func(use, short, empty string) *cobra.Command {
 		return &cobra.Command{
-			Use: use, Short: short, Args: args,
-			RunE: func(c *cobra.Command, _ []string) error { return notImplemented("keep "+c.Name(), "M2") },
+			Use:   use,
+			Short: short,
+			Args:  cobra.NoArgs,
+			RunE: func(cmd *cobra.Command, _ []string) error {
+				return listStrings(cmd, "keep", "Never touched", empty, g)
+			},
 		}
 	}
 	cmd.AddCommand(
-		sub("list", "List what is kept", cobra.NoArgs),
-		sub("add <path>", "Never touch this file or folder", cobra.ExactArgs(1)),
-		sub("remove <path>", "Allow tidying it again", cobra.ExactArgs(1)),
+		add("list", "List what is kept", "nothing yet: `owlsort keep add ~/Downloads/Taxes`"),
+		&cobra.Command{
+			Use:   "add <path>",
+			Short: "Never touch this file or folder",
+			Args:  cobra.ExactArgs(1),
+			RunE: func(cmd *cobra.Command, args []string) error {
+				return addString(cmd, "keep", args[0], g)
+			},
+		},
+		&cobra.Command{
+			Use:   "remove <path>",
+			Short: "Allow tidying it again",
+			Args:  cobra.ExactArgs(1),
+			RunE: func(cmd *cobra.Command, args []string) error {
+				return removeString(cmd, "keep", args[0], g)
+			},
+		},
 	)
 	return cmd
 }

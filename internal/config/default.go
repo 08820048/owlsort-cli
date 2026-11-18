@@ -18,7 +18,11 @@ func Default(lang i18n.Language) Config {
 	}
 
 	return Config{
-		Folders:  []string{"~/Downloads", "~/Desktop"},
+		Folders: []string{"~/Downloads", "~/Desktop"},
+		// An empty list rather than nil, so it matches what reading the file's
+		// `keep = []` gives back: Template and Default have to agree exactly, and a
+		// test holds them to it.
+		Keep:     []string{},
 		Conflict: ConflictRename,
 		Rules: []Rule{
 			{
