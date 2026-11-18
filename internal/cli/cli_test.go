@@ -15,6 +15,9 @@ import (
 	"github.com/08820048/owlsort-cli/internal/exitcode"
 	"github.com/08820048/owlsort-cli/internal/i18n"
 	"github.com/08820048/owlsort-cli/internal/plan"
+	"github.com/08820048/owlsort-cli/internal/protect"
+	"github.com/08820048/owlsort-cli/internal/rules"
+	"github.com/08820048/owlsort-cli/internal/scan"
 )
 
 func run(args ...string) (string, error) {
@@ -697,5 +700,359 @@ func TestDoctorFailsWhenTheConfigurationIsMissing(t *testing.T) {
 	}
 	if !strings.Contains(out, "FAIL") {
 		t.Errorf("said %q", out)
+	}
+}
+
+// configText is a small, commented configuration a test can edit.
+func configText(folder string) string {
+	return `# a configuration with a comment worth keeping
+folders = ['` + folder + `']
+keep = []
+conflict = "rename"   # keep both files
+
+[[rule]]
+name = "PDFs"
+when = [{ ext = ["pdf"] }]
+move_to = "Documents/PDF"   # where PDFs go
+
+[[rule]]
+name = "Archives"
+when = [{ category = "archive" }]
+move_to = "Archives"
+`
+}
+
+func TestRulesListShowsEveryRule(t *testing.T) {
+	folder := t.TempDir()
+	out, err := withStdin(t, false, "", "rules", "list", "--config", writeConfigText(t, configText(folder)))
+	if err != nil {
+		t.Fatalf("%v:\n%s", err, out)
+	}
+	for _, want := range []string{"PDFs", "Archives", "move to Documents/PDF", "on", "2 of 2 on"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("rules list does not mention %q:\n%s", want, out)
+		}
+	}
+}
+
+func TestRulesShowOneRule(t *testing.T) {
+	folder := t.TempDir()
+	out, err := withStdin(t, false, "", "rules", "show", "PDFs", "--config", writeConfigText(t, configText(folder)))
+	if err != nil {
+		t.Fatalf("%v:\n%s", err, out)
+	}
+	for _, want := range []string{"PDFs", "ext is \"pdf\"", "move to Documents/PDF"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("rules show does not mention %q:\n%s", want, out)
+		}
+	}
+}
+
+func TestRulesShowAnUnknownRuleIsAnError(t *testing.T) {
+	folder := t.TempDir()
+	_, err := withStdin(t, false, "", "rules", "show", "Nope", "--config", writeConfigText(t, configText(folder)))
+	if code := exitCodeOf(err); code != exitcode.Error {
+		t.Fatalf("exit code = %d, want %d", code, exitcode.Error)
+	}
+}
+
+func TestRulesDisableEditsOnlyThatRuleAndKeepsComments(t *testing.T) {
+	folder := t.TempDir()
+	path := writeConfigText(t, configText(folder))
+
+	out, err := withStdin(t, false, "", "rules", "disable", "PDFs", "--config", path)
+	if err != nil {
+		t.Fatalf("%v:\n%s", err, out)
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(after)
+	if !strings.Contains(text, "# a configuration with a comment worth keeping") {
+		t.Error("the leading comment was lost")
+	}
+	if !strings.Contains(text, `conflict = "rename"   # keep both files`) {
+		t.Error("the trailing comment on conflict was lost")
+	}
+	if !strings.Contains(text, "move_to = \"Documents/PDF\"   # where PDFs go") {
+		t.Error("the trailing comment on move_to was lost")
+	}
+	if !strings.Contains(text, "name = \"PDFs\"\nenabled = false\n") {
+		t.Errorf("PDFs was not switched off:\n%s", text)
+	}
+	if strings.Contains(text, "name = \"Archives\"\nenabled") {
+		t.Error("Archives was changed as well")
+	}
+	if !strings.Contains(out, "is off") {
+		t.Errorf("said %q", out)
+	}
+}
+
+func TestRulesDisableTwiceSaysNothingChanged(t *testing.T) {
+	folder := t.TempDir()
+	path := writeConfigText(t, configText(folder))
+	if _, err := withStdin(t, false, "", "rules", "disable", "PDFs", "--config", path); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := withStdin(t, false, "", "rules", "disable", "PDFs", "--config", path)
+	if err != nil {
+		t.Fatalf("%v:\n%s", err, out)
+	}
+	if !strings.Contains(out, "already off") {
+		t.Errorf("said %q", out)
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != string(before) {
+		t.Error("the file was rewritten for no change")
+	}
+}
+
+func TestRulesEnableTurnsAnOffRuleBackOn(t *testing.T) {
+	folder := t.TempDir()
+	path := writeConfigText(t, strings.Replace(configText(folder),
+		"name = \"PDFs\"\n", "name = \"PDFs\"\nenabled = false\n", 1))
+	if _, err := withStdin(t, false, "", "rules", "enable", "PDFs", "--config", path); err != nil {
+		t.Fatal(err)
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(after), "name = \"PDFs\"\nenabled = true\n") {
+		t.Errorf("PDFs was not switched on:\n%s", after)
+	}
+}
+
+func TestFoldersAddAndRemove(t *testing.T) {
+	watched := t.TempDir()
+	extra := t.TempDir()
+	path := writeConfigText(t, "folders = ['"+watched+"']\nconflict = \"rename\"\n")
+
+	out, err := withStdin(t, false, "", "folders", "add", extra, "--config", path)
+	if err != nil {
+		t.Fatalf("%v:\n%s", err, out)
+	}
+	cfg, err := config.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.Folders) != 2 || cfg.Folders[1] != extra {
+		t.Fatalf("folders = %v", cfg.Folders)
+	}
+
+	out, err = withStdin(t, false, "", "folders", "list", "--config", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, extra) || !strings.Contains(out, watched) {
+		t.Errorf("folders list said:\n%s", out)
+	}
+
+	if _, err := withStdin(t, false, "", "folders", "remove", extra, "--config", path); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err = config.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.Folders) != 1 || cfg.Folders[0] != watched {
+		t.Errorf("folders = %v", cfg.Folders)
+	}
+}
+
+func TestFoldersAddRefusesAFolderThatIsNotThere(t *testing.T) {
+	watched := t.TempDir()
+	path := writeConfigText(t, "folders = ['"+watched+"']\nconflict = \"rename\"\n")
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = withStdin(t, false, "", "folders", "add", filepath.Join(t.TempDir(), "gone"), "--config", path)
+	if code := exitCodeOf(err); code != exitcode.Usage {
+		t.Fatalf("exit code = %d, want %d (%v)", code, exitcode.Usage, err)
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != string(before) {
+		t.Error("a folder that is not there was added anyway")
+	}
+}
+
+func TestFoldersAddRefusesAFile(t *testing.T) {
+	watched := t.TempDir()
+	file := filepath.Join(watched, "a-file.pdf")
+	makeFile(t, file, 10)
+	path := writeConfigText(t, "folders = ['"+watched+"']\nconflict = \"rename\"\n")
+
+	_, err := withStdin(t, false, "", "folders", "add", file, "--config", path)
+	if code := exitCodeOf(err); code != exitcode.Usage {
+		t.Fatalf("exit code = %d, want %d", code, exitcode.Usage)
+	}
+}
+
+func TestFoldersAddIsIdempotent(t *testing.T) {
+	watched := t.TempDir()
+	path := writeConfigText(t, "folders = ['"+watched+"']\nconflict = \"rename\"\n")
+
+	out, err := withStdin(t, false, "", "folders", "add", watched, "--config", path)
+	if err != nil {
+		t.Fatalf("%v:\n%s", err, out)
+	}
+	if !strings.Contains(out, "already in folders") {
+		t.Errorf("said %q", out)
+	}
+	cfg, err := config.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.Folders) != 1 {
+		t.Errorf("folders = %v", cfg.Folders)
+	}
+}
+
+func TestFoldersRemoveSomethingThatIsNotThereIsAnError(t *testing.T) {
+	watched := t.TempDir()
+	path := writeConfigText(t, "folders = ['"+watched+"']\nconflict = \"rename\"\n")
+	_, err := withStdin(t, false, "", "folders", "remove", t.TempDir(), "--config", path)
+	if code := exitCodeOf(err); code != exitcode.Error {
+		t.Fatalf("exit code = %d, want %d", code, exitcode.Error)
+	}
+}
+
+func TestKeepAddAndList(t *testing.T) {
+	folder := t.TempDir()
+	kept := t.TempDir()
+	path := writeConfigText(t, "folders = ['"+folder+"']\nkeep = []\nconflict = \"rename\"\n")
+
+	if _, err := withStdin(t, false, "", "keep", "add", kept, "--config", path); err != nil {
+		t.Fatal(err)
+	}
+	out, err := withStdin(t, false, "", "keep", "list", "--config", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, kept) {
+		t.Errorf("keep list said:\n%s", out)
+	}
+
+	// A kept folder really is left alone.
+	cfg, err := config.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	makeFile(t, filepath.Join(kept, "report.pdf"), 10)
+	p, err := rules.Build([]scan.File{{
+		Path: filepath.Join(kept, "report.pdf"), Name: "report.pdf", Extension: "pdf",
+		Folder: kept, Modified: time.Now().Add(-time.Hour), Size: 10,
+	}}, cfg, protect.New(cfg), rules.Env{Now: time.Now()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Count() != 0 {
+		t.Errorf("a kept file was planned: %+v", p.Folders)
+	}
+	if len(p.Folders) != 1 || len(p.Folders[0].Skipped) != 1 || p.Folders[0].Skipped[0].Reason != plan.SkipKept {
+		t.Errorf("a kept file was not reported as kept: %+v", p.Folders)
+	}
+}
+
+func TestKeepRemoveAllowsTidyingAgain(t *testing.T) {
+	folder := t.TempDir()
+	kept := filepath.Join(folder, "Taxes")
+	if err := os.MkdirAll(kept, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := writeConfigText(t, "folders = ['"+folder+"']\nkeep = ['"+kept+"']\nconflict = \"rename\"\n")
+
+	if _, err := withStdin(t, false, "", "keep", "remove", kept, "--config", path); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.Keep) != 0 {
+		t.Errorf("keep = %v", cfg.Keep)
+	}
+}
+
+func TestRulesEditOpensAnEditorAndChecksTheResult(t *testing.T) {
+	folder := t.TempDir()
+	path := writeConfigText(t, configText(folder))
+
+	// A stand-in editor: a shell script that comments out a rule, so the file is
+	// still valid and the command can say so.
+	editor := filepath.Join(t.TempDir(), "editor.sh")
+	script := "#!/bin/sh\nprintf '\\n# edited by the test\\n' >> \"$1\"\n"
+	if err := os.WriteFile(editor, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("VISUAL", editor)
+
+	out, err := withStdin(t, true, "", "rules", "edit", "--config", path)
+	if err != nil {
+		t.Fatalf("%v:\n%s", err, out)
+	}
+	if !strings.Contains(out, "no problems found") {
+		t.Errorf("said %q", out)
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(after), "# edited by the test") {
+		t.Error("the edit did not land")
+	}
+}
+
+func TestRulesEditReportsWhatTheEditorBroke(t *testing.T) {
+	folder := t.TempDir()
+	path := writeConfigText(t, configText(folder))
+
+	editor := filepath.Join(t.TempDir(), "editor.sh")
+	// Removes a required key, which the next load refuses.
+	script := "#!/bin/sh\nprintf 'conflict = \"overwrite\"\\n' > \"$1\"\n"
+	if err := os.WriteFile(editor, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("VISUAL", editor)
+
+	out, err := withStdin(t, true, "", "rules", "edit", "--config", path)
+	if code := exitCodeOf(err); code != exitcode.Usage {
+		t.Fatalf("exit code = %d, want %d (%v)\n%s", code, exitcode.Usage, err, out)
+	}
+	after, readErr := os.ReadFile(path)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if !strings.Contains(string(after), "overwrite") {
+		t.Error("the file was thrown away: a half-finished edit is still the user's")
+	}
+}
+
+func TestRulesEditWithoutAnEditorOrATerminalRefuses(t *testing.T) {
+	folder := t.TempDir()
+	path := writeConfigText(t, configText(folder))
+	t.Setenv("VISUAL", "")
+	t.Setenv("EDITOR", "")
+
+	_, err := withStdin(t, false, "", "rules", "edit", "--config", path)
+	if code := exitCodeOf(err); code != exitcode.Usage {
+		t.Fatalf("exit code = %d, want %d", code, exitcode.Usage)
+	}
+	if !strings.Contains(err.Error(), "EDITOR") {
+		t.Errorf("message = %q", err.Error())
 	}
 }
