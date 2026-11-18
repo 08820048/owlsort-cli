@@ -12,6 +12,8 @@
 | D6 | **No permanent delete, no scripts, no network.** | A file tidier that can lose files, or run arbitrary commands, or phone home, is not safe to leave running. |
 | D7 | **Preview first, undo always** are properties of the code ([safety-model.md](safety-model.md)), not options. | It is the reason to pick this tool over a shell script. |
 | D8 | **Defaults for the provisional choices below are TOML, English + Simplified Chinese, command `owlsort`.** | So work can start; each is cheap to change before v0.1. |
+| D9 | **`rules.Build` takes an `Env`: interface language, time zone, clock, and whether the run is unattended.** | The engine must stay pure (no clock, no environment), so everything it needs from outside is passed in. A test pins them and gets the same plan every time. |
+| D10 | **Protection stops at the home folder and at a volume root: neither is ever classified as a project.** | A stray `package.json` in `~` (common with npm scripts) would otherwise make every file below the home folder "in a code project" and the tool would quietly do nothing. Real projects sit in a named folder below home, where the markers are still found. |
 
 ## Open
 

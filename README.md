@@ -4,11 +4,10 @@
 
 [中文说明](README.zh-CN.md)
 
-> **Status: pre-alpha, design stage.** The command line, configuration format and
-> safety rules are specified and the skeleton builds on macOS, Linux and Windows,
-> but the commands do not do their work yet (they say which milestone they belong
-> to). It is not ready to use. See [docs/roadmap.md](docs/roadmap.md) for where to
-> start if you want to help.
+> **Status: pre-alpha.** `owlsort init`, `preview` and `explain` work: they read the
+> configuration, scan the folders and print exactly the plan below, moving nothing.
+> `tidy`, `undo` and `history` say which milestone they belong to (M1) and do not run
+> yet. Do not rely on it for real folders until M1. See [docs/roadmap.md](docs/roadmap.md).
 
 `owlsort` moves the screenshots, PDFs, installers and archives that pile up in your
 folders into tidy places, by rules you can read and edit. It is built around one
@@ -27,7 +26,7 @@ $ owlsort tidy          # shows the same, asks, then moves
 $ owlsort undo          # put the last run back
 ```
 
-*(Planned output; see [docs/commands.md](docs/commands.md).)*
+*(What `owlsort preview` prints today; `tidy` and `undo` are milestone M1. See [docs/commands.md](docs/commands.md).)*
 
 ## Principles
 

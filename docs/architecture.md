@@ -46,22 +46,22 @@ config.toml ──► config ──┐
 | Package | Role | State |
 |---|---|---|
 | `cmd/owlsort` | `main`: builds the command tree, maps errors to exit codes | done |
-| `internal/cli` | cobra commands and flags; parse, call, print; **no logic** | stubs (the surface is real) |
+| `internal/cli` | cobra commands and flags; parse, call, print; **no logic** | `init`, `preview`, `explain` done; the rest are stubs |
 | `internal/config` | the TOML model, parsing, validation, built-in rules | **done**, tested |
 | `internal/category` | extension → category (`image`, `document`, …) | **done**, tested |
 | `internal/pathvars` | `{date}` `{year}` … expansion; `FixedPrefix` | **done**, tested |
 | `internal/i18n` | language resolution; category names | **done**, tested |
 | `internal/exitcode` | exit codes (a public interface) | done |
 | `internal/plan` | `Plan`, `Item`, `Skipped`, skip reasons (the JSON shape) | types done |
-| `internal/scan` | list a folder's files | M0 |
-| `internal/protect` | code projects, notes libraries, the keep list | M0 |
-| `internal/rules` | `Build`, `Explain` | M0 |
+| `internal/scan` | list a folder's files | **done**, tested |
+| `internal/protect` | code projects, notes libraries, the keep list | **done**, tested |
+| `internal/rules` | `Build`, `Explain` | **done**, tested |
 | `internal/apply` | run a plan, undo a batch | M1 |
 | `internal/journal` | append-only JSON Lines record | M1 (entry type done) |
 | `internal/trash` | system trash per platform (`trash_<os>.go`) | M1 |
 | `internal/watch` | foreground monitor | M3 |
 | `internal/service` | launchd / systemd / scheduled task | M3 |
-| `internal/output` | tables for people, JSON for scripts | partly |
+| `internal/output` | tables for people, JSON for scripts | text preview and JSON done; explain has no JSON shape yet |
 
 Dependency direction: `cli → {rules, apply, scan, journal, output, config}`;
 `rules → {config, plan, protect, scan, pathvars, category}`; leaf packages

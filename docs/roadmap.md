@@ -17,15 +17,20 @@ first unchecked item. `docs/safety-model.md` says which tests each safety rule n
 
 Goal: `owlsort init && owlsort preview` is correct on all three systems.
 
-- [ ] Config location per OS; `init` writes the file (never overwrites an existing one)
-- [ ] `internal/scan`: top level, skip rules (hidden, packages, cloud placeholders, downloading)
-- [ ] `internal/protect`: code projects, Obsidian / Logseq, keep list
-- [ ] `internal/rules.Build`: all conditions, `match`, `not`, `continue`, settled files, destination checks
-- [ ] `internal/rules.Explain` using the same code path as `Build`
-- [ ] `preview` and `explain`, text and `--json`
-- [ ] Fixture trees under `testdata/` for scan and protect; plan snapshots
+- [x] Config location per OS; `init` writes the file (never overwrites an existing one)
+- [x] `internal/scan`: top level, skip rules (hidden, packages, cloud placeholders, downloading)
+- [x] `internal/protect`: code projects, Obsidian / Logseq, keep list
+- [x] `internal/rules.Build`: all conditions, `match`, `not`, `continue`, settled files, destination checks
+- [x] `internal/rules.Explain` using the same code path as `Build`
+- [ ] `preview` and `explain`, text and `--json`: `preview` prints text and the documented JSON;
+      `explain` prints text only, its JSON shape is not specified yet
+- [ ] Fixture trees under `testdata/` for scan and protect; plan snapshots: the trees are built in
+      `t.TempDir()` instead, because git refuses to store a folder named `.git` (see `testdata/README.md`)
 
 Done when: on a temporary folder of mixed files, `preview` lists the right moves and the right skips on macOS, Linux and Windows, and `explain` agrees with it for every file.
+
+State: the engine is written and tested on macOS (2026-11-18). The CI run on Linux and
+Windows is what closes this milestone.
 
 ## M1: tidy and undo
 

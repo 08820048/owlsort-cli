@@ -4,9 +4,9 @@
 
 [English](README.md)
 
-> **状态：早期阶段，设计中。** 命令行、配置格式和安全规则已经写成规格，骨架可以在
-> macOS、Linux、Windows 上编译，但各命令还没有实现具体功能（它们会告诉你属于哪个里程碑）。
-> 现在还不能用。想参与的话，从 [docs/roadmap.md](docs/roadmap.md) 开始看。
+> **状态：早期阶段。** `owlsort init`、`preview`、`explain` 已经能用：读配置、扫描文件夹、
+> 打印出下面这样的整理计划，一个文件都不动。`tidy`、`undo`、`history` 会告诉你属于 M1、还没实现。
+> 在 M1 之前不要拿真实文件夹试。想参与的话，从 [docs/roadmap.md](docs/roadmap.md) 开始看。
 
 `owlsort` 按你能读懂、能编辑的规则，把堆在文件夹里的截图、PDF、安装包、压缩包移到整齐的地方。
 它围绕一个想法：**动手之前先看到结果，任何一次整理都能撤销。**

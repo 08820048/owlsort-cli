@@ -18,12 +18,13 @@ code, no shared data, no feature parity required. Written in Go, no cgo, no netw
 
 ## State of the code
 
-- **Done and tested:** `internal/config`, `category`, `pathvars`, `i18n`, `exitcode`,
-  `policy`, and the command tree in `internal/cli` (its surface, not its work).
-- **Contracts written, code to do:** `scan`, `protect`, `rules` (M0); `apply`,
-  `journal`, `trash` (M1); `watch`, `service` (M3). Each file starts with a comment
-  that is the contract to build to. Stubs return `ErrNotImplemented`.
-- The commands print "not built yet (planned for M?)" until their milestone lands.
+- **Done and tested:** `internal/config` (model, validation, built-in rules, default path,
+  never-overwrite write), `category`, `pathvars`, `i18n`, `exitcode`, `policy`, `scan`,
+  `protect`, `rules` (M0), `output` (text preview + JSON), and `init` / `preview` / `explain`.
+- **Contracts written, code to do:** `apply`, `journal`, `trash` (M1); `watch`, `service`
+  (M3). Each file starts with a comment that is the contract to build to. Stubs return
+  `ErrNotImplemented`.
+- The remaining commands print "not built yet (planned for M?)" until their milestone lands.
 
 ## Commands
 
