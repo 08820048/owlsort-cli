@@ -6,7 +6,7 @@
 
 > **状态：早期阶段。** 整理在 macOS 上已经跑通全流程：`init`、`preview`、`explain`、
 > `tidy`、`undo`、`history`。Linux 和 Windows 能编译、CI 里跑同一套测试，但还没有人工试过；
-> `rules`/`folders`/`keep` 这些改规则用的命令是 M2，现在直接编辑配置文件。
+> `rules check`、`uncovered`、`doctor` 能读配置、告诉你哪里有问题；改配置还是直接编辑文件（M2）。
 > 先在你有备份的文件夹上试。想参与的话，从 [docs/roadmap.md](docs/roadmap.md) 开始看。
 
 `owlsort` 按你能读懂、能编辑的规则，把堆在文件夹里的截图、PDF、安装包、压缩包移到整齐的地方。

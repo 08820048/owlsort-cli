@@ -47,7 +47,7 @@ A public interface; scripts rely on them (`internal/exitcode`).
 | `owlsort undo [--batch id]` | put back the newest batch, or the one given (M1) |
 | `owlsort history [--limit 20]` | one line per run: id, time, files, where to (M1) |
 | `owlsort explain <file>` | the rule and condition that would take it, or the protection that stops it (M0) |
-| `owlsort uncovered [path...]` | files no rule covers, grouped by extension (M2) |
+| `owlsort uncovered [path...]` | files no rule covers, grouped by extension |
 
 `tidy` without a terminal and without `--yes` only previews and exits 4.
 
@@ -60,7 +60,7 @@ A public interface; scripts rely on them (`internal/exitcode`).
 | `owlsort rules check` | missing values, bad regexes, rules shadowed by earlier ones, destinations that climb out (M2) |
 | `owlsort folders list \| add <path> \| remove <path>` | watched folders; removing moves nothing (M2) |
 | `owlsort keep list \| add <path> \| remove <path>` | never touched (M2) |
-| `owlsort doctor` | config readable, folders exist, trash works, permissions (M2) |
+| `owlsort doctor` | config readable, folders exist, journal writable, trash works |
 | `owlsort completion bash\|zsh\|fish\|powershell` | shell completion (free from cobra) |
 
 ### Background
@@ -74,6 +74,67 @@ A public interface; scripts rely on them (`internal/exitcode`).
 background, unless `--force`.
 
 ## Output
+
+### `rules check`
+
+One line per problem, then a summary. A **mistake** (something the configuration
+may not say) exits with code 1; a **warning** (a rule no file can reach) does not,
+because the configuration is valid and the program runs.
+
+```
+error: rule "Broken", condition 1: name_regex "(": error parsing regexp: missing closing ): `(`
+warning: rule "Documents" can never take a file: rule "PDFs" above it takes every file it
+would. Move "Documents" above "PDFs", or set `continue = true` on "PDFs".
+
+config.toml: 1 error, 1 warning.
+```
+
+It reads the configuration even when it is invalid — reporting one problem and
+hiding the rest would be the opposite of its job — so it parses without validating
+(`config.ParseLoose`) and then lists everything `config.Problems` and the shadowing
+analysis find. In `--json`, an array of `{severity, rule, message}`.
+
+A rule is never called shadowed on a guess: only when an earlier rule can be shown
+to take every file it would ([decisions.md](decisions.md), D11).
+
+### `uncovered`
+
+The loose files no rule takes, grouped by extension, most first. Protected, hidden
+and still-downloading files are **not** listed: the plan already explains those,
+and suggesting a rule for them would be wrong advice. Exits with code 3 when it
+finds any, 0 when it finds none.
+
+```
+6 loose file(s) no rule covers, by extension:
+
+  weird            3 files  e.g. another.weird, notes.weird, thing.weird
+  no extension     1 file   e.g. README
+  docx             1 file   e.g. x.docx
+
+Add a rule to a copy of the built-in set, or turn on one of the rules that ship off.
+```
+
+`--json` is an array of `{extension, count, examples}`.
+
+### `doctor`
+
+One line per check, then a verdict. Exits with code 1 when something would stop
+the program from working.
+
+```
+ok   configuration    /Users/me/.config/owlsort/config.toml, 9 rule(s)
+ok   journal          /Users/me/.local/state/owlsort/journal.jsonl (will be created)
+warn system trash     trash: ~/.Trash is not a folder (no rule uses the trash, so this does not stop anything)
+ok   watched folder   ~/Downloads (43 file(s) at the top level)
+
+Ready. `owlsort preview` would tidy files from here.
+```
+
+The trash is only a **failure** when some enabled rule sends a file to it; without
+such a rule it is a warning, because reporting a failure for something the
+configuration never uses sends the user after a problem they do not have.
+`doctor` changes nothing: it creates no folder and writes no journal, so it can be
+run to find out what is wrong.
 
 ### `preview`, for people
 

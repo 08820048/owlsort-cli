@@ -8,6 +8,21 @@ All notable changes are listed here. The format follows
 
 ### Added
 
+- `rules check`: every problem with a configuration, one per line — a condition that
+  tests two things, a bad regex, a size that is not a size, a destination that climbs
+  out, a name used twice, and a rule no file can reach because an earlier one already
+  takes every file it would. A mistake exits 1; a warning does not, because the
+  configuration is valid. Reads a broken configuration on purpose, so one mistake does
+  not hide the rest.
+- `uncovered`: the loose files no rule takes, grouped by extension with a few examples.
+  Protected, hidden and downloading files are left out — the plan already explains
+  them, and a rule for them would be wrong advice.
+- `doctor`: configuration readable and valid, journal writable, watched folders present
+  and readable, system trash usable. Creates nothing, so it can be run to find out
+  what is wrong. The trash is only a failure when a rule actually uses it.
+- `config.Problems`: validation reports one problem at a time with the rule it belongs
+  to, instead of one long joined error; `config.ParseLoose` parses without validating.
+
 - M1: `tidy`, `undo` and `history`. `tidy` shows the plan and asks; with no terminal
   and no `--yes` it only previews and exits 4. Every step is re-checked right before
   it runs (source still there, same size and modification time), a clash is resolved

@@ -46,7 +46,7 @@ config.toml ──► config ──┐
 | Package | Role | State |
 |---|---|---|
 | `cmd/owlsort` | `main`: builds the command tree, maps errors to exit codes | done |
-| `internal/cli` | cobra commands and flags; parse, call, print; **no logic** | `init`, `preview`, `explain`, `tidy`, `undo`, `history` done; the rest are stubs |
+| `internal/cli` | cobra commands and flags; parse, call, print; **no logic** | `init`, `preview`, `explain`, `tidy`, `undo`, `history`, `uncovered`, `doctor`, `rules check` done; the rest are stubs |
 | `internal/config` | the TOML model, parsing, validation, built-in rules | **done**, tested |
 | `internal/category` | extension → category (`image`, `document`, …) | **done**, tested |
 | `internal/pathvars` | `{date}` `{year}` … expansion; `FixedPrefix` | **done**, tested |
@@ -55,7 +55,7 @@ config.toml ──► config ──┐
 | `internal/plan` | `Plan`, `Item`, `Skipped`, skip reasons (the JSON shape) | types done |
 | `internal/scan` | list a folder's files | **done**, tested |
 | `internal/protect` | code projects, notes libraries, the keep list | **done**, tested |
-| `internal/rules` | `Build`, `Explain` | **done**, tested |
+| `internal/rules` | `Build`, `Explain`, `Uncovered` | **done**, tested |
 | `internal/apply` | run a plan, undo a batch | **done**, tested |
 | `internal/journal` | append-only JSON Lines record | **done**, tested |
 | `internal/trash` | system trash per platform (`trash_<os>.go`) | **done**: macOS tested here, Linux and Windows by CI |
@@ -63,6 +63,8 @@ config.toml ──► config ──┐
 | `internal/service` | launchd / systemd / scheduled task | M3 |
 | `internal/output` | tables for people, JSON for scripts | text preview and JSON done; explain has no JSON shape yet |
 | `internal/naming` | a name that does not collide (`report 2.pdf`) | **done**, tested |
+| `internal/check` | what is wrong with a configuration (`rules check`) | **done**, tested |
+| `internal/doctor` | will this work on this machine | **done**, tested |
 
 Dependency direction: `cli → {rules, apply, scan, journal, output, config}`;
 `rules → {config, plan, protect, scan, pathvars, category}`; leaf packages

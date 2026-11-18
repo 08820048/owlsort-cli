@@ -6,8 +6,9 @@
 
 > **Status: pre-alpha.** Tidying works end to end on macOS: `init`, `preview`,
 > `explain`, `tidy`, `undo` and `history`. Linux and Windows build and are covered by
-> the same tests in CI, but have not been run by hand yet, and `tidy` has no
-> filter or `rules`/`folders`/`keep` commands (M2) — you edit the config by hand.
+> the same tests in CI, but have not been run by hand yet. `rules check`, `uncovered` and
+> `doctor` read the configuration and tell you what is wrong; changing it still means
+> editing the file by hand (M2).
 > Try it on a folder you have a backup of. See [docs/roadmap.md](docs/roadmap.md).
 
 `owlsort` moves the screenshots, PDFs, installers and archives that pile up in your

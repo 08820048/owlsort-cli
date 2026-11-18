@@ -22,9 +22,11 @@ code, no shared data, no feature parity required. Written in Go, no cgo, no netw
   never-overwrite write), `category`, `pathvars`, `i18n`, `exitcode`, `policy`, `naming`,
   `scan`, `protect`, `rules` (M0), `journal`, `apply`, `trash`, `output` (text preview +
   JSON), and `init` / `preview` / `explain` / `tidy` / `undo` / `history`.
-- **Contracts written, code to do:** `watch`, `service` (M3), and the M2 commands
-  (`uncovered`, `rules`, `folders`, `keep`, `doctor`). Each file starts with a comment
-  that is the contract to build to. Stubs return `ErrNotImplemented`.
+- **Done since:** `internal/check` (`rules check`), `internal/doctor`, `rules.Uncovered`.
+- **Contracts written, code to do:** `watch`, `service` (M3), and the M2 commands that
+  write the configuration (`rules list/show/enable/disable/edit`, `folders`, `keep`).
+  Each file starts with a comment that is the contract to build to. Stubs return
+  `ErrNotImplemented`.
 - The remaining commands print "not built yet (planned for M?)" until their milestone lands.
 
 ## Commands
