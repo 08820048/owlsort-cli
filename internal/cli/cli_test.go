@@ -537,6 +537,10 @@ func TestTidyNeverOverwritesAndExitsWithThree(t *testing.T) {
 
 // writeConfigText writes a configuration from TOML source, so a test can be
 // deliberately wrong.
+//
+// A path spliced into the source has to go in a TOML literal string ('...'): in a
+// basic string ("...") a backslash is an escape, and a Windows path would make the
+// file invalid before the test ever looked at it.
 func writeConfigText(t *testing.T, source string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "config.toml")
@@ -576,7 +580,7 @@ move_to = "../outside"
 func TestRulesCheckWarnsAboutAShadowedRuleWithoutFailing(t *testing.T) {
 	folder := t.TempDir()
 	path := writeConfigText(t, `conflict = "rename"
-folders = ["`+folder+`"]
+folders = ['`+folder+`']
 [[rule]]
 name = "PDFs first"
 when = [{ ext = ["pdf"] }]
@@ -612,7 +616,7 @@ func TestRulesCheckReportsAFileThatIsNotValidTOML(t *testing.T) {
 func TestRulesCheckJSON(t *testing.T) {
 	folder := t.TempDir()
 	path := writeConfigText(t, `conflict = "rename"
-folders = ["`+folder+`"]
+folders = ['`+folder+`']
 [[rule]]
 name = "a"
 when = [{ ext = ["pdf"] }]
