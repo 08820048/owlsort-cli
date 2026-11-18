@@ -86,6 +86,24 @@ type Condition struct {
 
 // Parse reads and validates a configuration.
 func Parse(data []byte) (Config, error) {
+	c, err := ParseLoose(data)
+	if err != nil {
+		return Config{}, err
+	}
+	if err := c.Validate(); err != nil {
+		return Config{}, err
+	}
+	return c, nil
+}
+
+// ParseLoose reads a configuration without checking what it says. It still
+// refuses what cannot be read at all (bad TOML, an unknown key), because there is
+// no configuration to report on then.
+//
+// It exists for `rules check` and `doctor`, which have to list every problem a
+// configuration has. Loading it the strict way would stop at the first mistake
+// and hide the rest, which is the one thing those commands must not do.
+func ParseLoose(data []byte) (Config, error) {
 	var c Config
 	meta, err := toml.Decode(string(data), &c)
 	if err != nil {
@@ -100,9 +118,6 @@ func Parse(data []byte) (Config, error) {
 	}
 	if c.Conflict == "" {
 		c.Conflict = ConflictRename
-	}
-	if err := c.Validate(); err != nil {
-		return Config{}, err
 	}
 	return c, nil
 }
@@ -129,15 +144,39 @@ func Marshal(c Config) ([]byte, error) {
 
 var sizePattern = regexp.MustCompile(`^\d+(\.\d+)?\s*(B|KB|MB|GB|TB)$`)
 
+// Problem is one thing wrong with a configuration.
+type Problem struct {
+	// Rule is the name of the rule it belongs to, or "" when the problem is
+	// the file's own. A rule with no name is reported as "rule 3".
+	Rule    string
+	Message string // one sentence, ready to print
+}
+
 // Validate checks a configuration and reports every problem it finds.
 func (c Config) Validate() error {
-	var problems []string
-	add := func(format string, args ...any) { problems = append(problems, fmt.Sprintf(format, args...)) }
+	problems := c.Problems()
+	if len(problems) == 0 {
+		return nil
+	}
+	messages := make([]string, len(problems))
+	for i, p := range problems {
+		messages[i] = p.Message
+	}
+	return errors.New("config: " + strings.Join(messages, "; "))
+}
+
+// Problems checks a configuration and returns every problem, one at a time, so
+// `rules check` can say which rule each one belongs to instead of one long line.
+func (c Config) Problems() []Problem {
+	var problems []Problem
+	add := func(rule, format string, args ...any) {
+		problems = append(problems, Problem{Rule: rule, Message: fmt.Sprintf(format, args...)})
+	}
 
 	switch c.Conflict {
 	case ConflictRename, ConflictSkip:
 	default:
-		add("conflict must be %q or %q, not %q", ConflictRename, ConflictSkip, c.Conflict)
+		add("", "conflict must be %q or %q, not %q", ConflictRename, ConflictSkip, c.Conflict)
 	}
 
 	seen := map[string]bool{}
@@ -147,21 +186,21 @@ func (c Config) Validate() error {
 			label = fmt.Sprintf("rule %q", r.Name)
 		}
 		if strings.TrimSpace(r.Name) == "" {
-			add("%s has no name", label)
+			add(label, "%s has no name", label)
 		} else if seen[r.Name] {
-			add("%s: the name is used twice", label)
+			add(r.Name, "%s: the name is used twice", label)
 		}
 		seen[r.Name] = true
 
 		if r.Match != "" && r.Match != "all" && r.Match != "any" {
-			add("%s: match must be \"all\" or \"any\", not %q", label, r.Match)
+			add(r.Name, "%s: match must be \"all\" or \"any\", not %q", label, r.Match)
 		}
 		if len(r.When) == 0 {
-			add("%s has no conditions (when)", label)
+			add(r.Name, "%s has no conditions (when)", label)
 		}
 		for j, cond := range r.When {
 			if err := cond.validate(); err != nil {
-				add("%s, condition %d: %v", label, j+1, err)
+				add(r.Name, "%s, condition %d: %v", label, j+1, err)
 			}
 		}
 
@@ -172,19 +211,15 @@ func (c Config) Validate() error {
 			}
 		}
 		if actions != 1 {
-			add("%s must have exactly one of move_to, copy_to, rename, trash (it has %d)", label, actions)
+			add(r.Name, "%s must have exactly one of move_to, copy_to, rename, trash (it has %d)", label, actions)
 		}
 		for _, dest := range []string{r.MoveTo, r.CopyTo} {
 			if hasParentStep(dest) {
-				add("%s: %q climbs out of the watched folder with \"..\"", label, dest)
+				add(r.Name, "%s: %q climbs out of the watched folder with \"..\"", label, dest)
 			}
 		}
 	}
-
-	if len(problems) == 0 {
-		return nil
-	}
-	return errors.New("config: " + strings.Join(problems, "; "))
+	return problems
 }
 
 func (c Condition) validate() error {
