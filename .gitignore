@@ -14,3 +14,4 @@ coverage.out
 # Local scratch: never commit real folders, journals or configs from a test run
 /tmp/
 /scratch/
+.alma-snapshots
