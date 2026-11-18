@@ -186,7 +186,7 @@ func perform(f scan.File, r config.Rule, env Env) (plan.Item, state, error) {
 		return plan.Item{}, stateNone, nil
 	}
 
-	item := plan.Item{Source: f.Path, Rule: r.Name}
+	item := plan.Item{Source: f.Path, Rule: r.Name, Size: f.Size, Modified: f.Modified}
 	switch {
 	case r.Trash:
 		item.Action = plan.Trash
@@ -219,7 +219,7 @@ func perform(f scan.File, r config.Rule, env Env) (plan.Item, state, error) {
 		}
 		destination, st, err := destination(f, template, env)
 		if err != nil || st != statePlanned {
-			return plan.Item{Destination: destination, Rule: r.Name}, st, err
+			return plan.Item{Destination: destination, Rule: r.Name, Size: f.Size, Modified: f.Modified}, st, err
 		}
 		item.Destination = destination
 		return item, statePlanned, nil

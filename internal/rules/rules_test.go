@@ -83,7 +83,7 @@ func TestTheBuiltInRulesFileTheLooseFiles(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if dir != want[filepath.Base(item.Source)] {
+		if filepath.ToSlash(dir) != want[filepath.Base(item.Source)] {
 			t.Errorf("%s: went to %q, want %q", filepath.Base(item.Source), dir, want[filepath.Base(item.Source)])
 		}
 		if item.Action != plan.Move {

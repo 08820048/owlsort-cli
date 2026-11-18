@@ -47,13 +47,13 @@ func TestVersion(t *testing.T) {
 }
 
 func TestUnbuiltCommandsSayWhenTheyComeAndExitWithAnError(t *testing.T) {
-	// tidy lands in M1; it must say so rather than pretend to have run.
-	_, err := run("tidy")
+	// uncovered lands in M2; it must say so rather than pretend to have run.
+	_, err := run("uncovered")
 	var coded *ExitError
 	if !errors.As(err, &coded) {
 		t.Fatalf("got %v", err)
 	}
-	if coded.Code != exitcode.Error || !strings.Contains(coded.Message, "M1") {
+	if coded.Code != exitcode.Error || !strings.Contains(coded.Message, "M2") {
 		t.Errorf("%+v", coded)
 	}
 }
@@ -251,5 +251,283 @@ func TestExplainSaysWhyAFileStays(t *testing.T) {
 	}
 	if !strings.Contains(out, "no rule covers it") {
 		t.Errorf("explain said %q", out)
+	}
+}
+
+// withStdin runs the command with a canned answer, and pretends to be (or not be)
+// a terminal.
+func withStdin(t *testing.T, terminal bool, answer string, args ...string) (string, error) {
+	t.Helper()
+	previous := stdinIsTerminal
+	stdinIsTerminal = func() bool { return terminal }
+	t.Cleanup(func() { stdinIsTerminal = previous })
+
+	root := New(BuildInfo{Version: "test", Commit: "abc", Date: "today"})
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&out)
+	root.SetIn(strings.NewReader(answer))
+	root.SetArgs(args)
+	err := root.Execute()
+	return out.String(), err
+}
+
+// stateDir keeps the journal of a test out of the real one.
+func stateDir(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	t.Setenv("XDG_STATE_HOME", dir)
+	return dir
+}
+
+// treeOf is every path below dir with its content.
+func treeOf(t *testing.T, dir string) map[string]string {
+	t.Helper()
+	out := map[string]string{}
+	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(dir, path)
+		if d.IsDir() {
+			out[rel] = "<dir>"
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		out[rel] = string(data)
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+func sameTree(t *testing.T, before, after map[string]string) {
+	t.Helper()
+	if len(before) != len(after) {
+		t.Fatalf("the folder changed: had %v, has %v", keysOf(before), keysOf(after))
+	}
+	for path, content := range before {
+		if after[path] != content {
+			t.Errorf("%s: was %q, is %q", path, content, after[path])
+		}
+	}
+}
+
+func keysOf(m map[string]string) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// exitCodeOf is the code an error maps to, or 0.
+func exitCodeOf(err error) int {
+	var coded *ExitError
+	if errors.As(err, &coded) {
+		return coded.Code
+	}
+	if err != nil {
+		return exitcode.Error
+	}
+	return exitcode.OK
+}
+
+func TestTidyWithoutATerminalOnlyPreviews(t *testing.T) {
+	folder := t.TempDir()
+	makeFile(t, filepath.Join(folder, "report-final.pdf"), 1024)
+	before := treeOf(t, folder)
+	state := stateDir(t)
+
+	out, err := withStdin(t, false, "", "tidy", "--config", writeConfig(t, folder))
+	if code := exitCodeOf(err); code != exitcode.NotConfirmed {
+		t.Fatalf("exit code = %d, want %d (%v)", code, exitcode.NotConfirmed, err)
+	}
+	if !strings.Contains(out, "report-final.pdf") {
+		t.Errorf("a tidy with no terminal must still show the plan:\n%s", out)
+	}
+	if !strings.Contains(out, "--yes") {
+		t.Errorf("it should say how to go ahead anyway:\n%s", out)
+	}
+	sameTree(t, before, treeOf(t, folder))
+	if _, err := os.Stat(filepath.Join(state, "owlsort", "journal.jsonl")); !os.IsNotExist(err) {
+		t.Error("a run that moved nothing wrote a journal")
+	}
+}
+
+func TestTidyWithANoLeavesTheFolderUntouched(t *testing.T) {
+	folder := t.TempDir()
+	makeFile(t, filepath.Join(folder, "report-final.pdf"), 1024)
+	before := treeOf(t, folder)
+	stateDir(t)
+
+	out, err := withStdin(t, true, "n\n", "tidy", "--config", writeConfig(t, folder))
+	if code := exitCodeOf(err); code != exitcode.NotConfirmed {
+		t.Fatalf("exit code = %d, want %d (%v)", code, exitcode.NotConfirmed, err)
+	}
+	if !strings.Contains(out, "Nothing moved") {
+		t.Errorf("said %q", out)
+	}
+	sameTree(t, before, treeOf(t, folder))
+}
+
+func TestTidyWithAYesMovesTheFiles(t *testing.T) {
+	folder := t.TempDir()
+	makeFile(t, filepath.Join(folder, "report-final.pdf"), 1024)
+	makeFile(t, filepath.Join(folder, "photos.zip"), 1024)
+	state := stateDir(t)
+
+	out, err := withStdin(t, true, "y\n", "tidy", "--config", writeConfig(t, folder))
+	if err != nil {
+		t.Fatalf("%v:\n%s", err, out)
+	}
+	if _, err := os.Stat(filepath.Join(folder, "Documents", "PDF", "report-final.pdf")); err != nil {
+		t.Errorf("the PDF did not move: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(folder, "Archives", "photos.zip")); err != nil {
+		t.Errorf("the archive did not move: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(state, "owlsort", "journal.jsonl")); err != nil {
+		t.Errorf("no journal was written: %v", err)
+	}
+	if !strings.Contains(out, "owlsort undo") {
+		t.Errorf("it should say how to undo:\n%s", out)
+	}
+}
+
+func TestTidyWithYesDoesNotAsk(t *testing.T) {
+	folder := t.TempDir()
+	makeFile(t, filepath.Join(folder, "report-final.pdf"), 1024)
+	stateDir(t)
+
+	out, err := withStdin(t, true, "", "tidy", "--yes", "--config", writeConfig(t, folder))
+	if err != nil {
+		t.Fatalf("%v:\n%s", err, out)
+	}
+	if strings.Contains(out, "[y/N]") {
+		t.Errorf("--yes still asked:\n%s", out)
+	}
+	if _, err := os.Stat(filepath.Join(folder, "Documents", "PDF", "report-final.pdf")); err != nil {
+		t.Error("the file did not move")
+	}
+}
+
+func TestTidyThenUndoRestoresTheFolder(t *testing.T) {
+	folder := t.TempDir()
+	makeFile(t, filepath.Join(folder, "report-final.pdf"), 1024)
+	makeFile(t, filepath.Join(folder, "photos.zip"), 2048)
+	makeFile(t, filepath.Join(folder, "Screenshot 1.png"), 512)
+	before := treeOf(t, folder)
+	stateDir(t)
+	cfg := writeConfig(t, folder)
+
+	if _, err := withStdin(t, true, "y\n", "tidy", "--config", cfg); err != nil {
+		t.Fatal(err)
+	}
+	if len(treeOf(t, folder)) == len(before) {
+		t.Fatal("nothing moved")
+	}
+
+	out, err := withStdin(t, true, "", "undo", "--config", cfg)
+	if err != nil {
+		t.Fatalf("%v:\n%s", err, out)
+	}
+	sameTree(t, before, treeOf(t, folder))
+}
+
+func TestUndoWithNothingToUndoExitsWithFive(t *testing.T) {
+	stateDir(t)
+	folder := t.TempDir()
+	out, err := withStdin(t, true, "", "undo", "--config", writeConfig(t, folder))
+	if code := exitCodeOf(err); code != exitcode.NothingToUndo {
+		t.Fatalf("exit code = %d, want %d (%v)\n%s", code, exitcode.NothingToUndo, err, out)
+	}
+}
+
+func TestUndoWithAnUnknownBatchExitsWithFive(t *testing.T) {
+	stateDir(t)
+	folder := t.TempDir()
+	_, err := withStdin(t, true, "", "undo", "--batch", "20260101-000000-0000", "--config", writeConfig(t, folder))
+	if code := exitCodeOf(err); code != exitcode.NothingToUndo {
+		t.Fatalf("exit code = %d, want %d (%v)", code, exitcode.NothingToUndo, err)
+	}
+}
+
+func TestHistoryListsARunAndSaysItWasUndone(t *testing.T) {
+	folder := t.TempDir()
+	makeFile(t, filepath.Join(folder, "report-final.pdf"), 1024)
+	stateDir(t)
+	cfg := writeConfig(t, folder)
+
+	if _, err := withStdin(t, true, "y\n", "tidy", "--config", cfg); err != nil {
+		t.Fatal(err)
+	}
+	out, err := withStdin(t, true, "", "history", "--config", cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "BATCH") || !strings.Contains(out, "Documents/PDF") && !strings.Contains(out, "Documents") {
+		t.Errorf("history said:\n%s", out)
+	}
+	if strings.Contains(out, "undone") {
+		t.Error("nothing has been undone yet")
+	}
+
+	if _, err := withStdin(t, true, "", "undo", "--config", cfg); err != nil {
+		t.Fatal(err)
+	}
+	out, err = withStdin(t, true, "", "history", "--config", cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "undone") {
+		t.Errorf("history does not mention the undo:\n%s", out)
+	}
+}
+
+// writeConfigWith is writeConfig with the clash strategy changed.
+func writeConfigWith(t *testing.T, folder string, conflict config.Conflict) string {
+	t.Helper()
+	c := config.Default(i18n.English)
+	c.Folders = []string{folder}
+	c.Conflict = conflict
+	data, err := config.Marshal(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestTidyNeverOverwritesAndExitsWithThree(t *testing.T) {
+	folder := t.TempDir()
+	makeFile(t, filepath.Join(folder, "report-final.pdf"), 1024)
+	taken := filepath.Join(folder, "Documents", "PDF", "report-final.pdf")
+	if err := os.MkdirAll(filepath.Dir(taken), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(taken, []byte("the one that was already there"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	stateDir(t)
+
+	out, err := withStdin(t, true, "y\n", "tidy", "--config", writeConfigWith(t, folder, config.ConflictSkip))
+	if code := exitCodeOf(err); code != exitcode.Partial {
+		t.Fatalf("exit code = %d, want %d (%v)\n%s", code, exitcode.Partial, err, out)
+	}
+	if got, err := os.ReadFile(taken); err != nil || string(got) != "the one that was already there" {
+		t.Errorf("the existing file was overwritten: %q %v", got, err)
+	}
+	if _, err := os.Stat(filepath.Join(folder, "report-final.pdf")); err != nil {
+		t.Error("the file the strategy said to skip was moved anyway")
 	}
 }

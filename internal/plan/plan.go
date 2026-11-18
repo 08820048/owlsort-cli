@@ -3,6 +3,8 @@
 // `tidy` carries it out. Nothing in this package touches the disk.
 package plan
 
+import "time"
+
 // Action is what happens to a file.
 type Action string
 
@@ -58,6 +60,13 @@ type Item struct {
 	Destination string `json:"destination,omitempty"` // empty for trash
 	Action      Action `json:"action"`
 	Rule        string `json:"rule"`
+
+	// Size and Modified are what the preview saw. The executor compares them
+	// with the file right before it moves it, so a file that changed in the
+	// meantime is skipped instead of moved (docs/safety-model.md, rule 7).
+	// They are not part of the --json shape.
+	Size     int64     `json:"-"`
+	Modified time.Time `json:"-"`
 }
 
 // Skipped is a file the engine looked at and left alone.

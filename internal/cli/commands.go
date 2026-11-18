@@ -78,7 +78,7 @@ func tidyCmd(g *flags) *cobra.Command {
 
 Without a terminal (a script, a pipe) it only previews and exits with code 4,
 unless --yes is given: running in a script never moves files by accident.`,
-		RunE: func(*cobra.Command, []string) error { return notImplemented("tidy", "M1") },
+		RunE: func(cmd *cobra.Command, args []string) error { return tidy(cmd, args, g, yes) },
 	}
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "do not ask for confirmation")
 	return cmd
@@ -89,7 +89,7 @@ func undoCmd(g *flags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "undo",
 		Short: "Put back the newest batch (or the one given with --batch)",
-		RunE:  func(*cobra.Command, []string) error { return notImplemented("undo", "M1") },
+		RunE:  func(cmd *cobra.Command, _ []string) error { return undo(cmd, batch, g) },
 	}
 	cmd.Flags().StringVar(&batch, "batch", "", "batch id from `owlsort history`")
 	return cmd
@@ -100,7 +100,7 @@ func historyCmd(g *flags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "history",
 		Short: "List past runs, newest first: when, how many files, where to",
-		RunE:  func(*cobra.Command, []string) error { return notImplemented("history", "M1") },
+		RunE:  func(cmd *cobra.Command, _ []string) error { return history(cmd, limit, g) },
 	}
 	cmd.Flags().IntVar(&limit, "limit", 20, "how many runs to show")
 	return cmd

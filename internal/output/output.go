@@ -82,11 +82,13 @@ func runeLen(s string) int {
 }
 
 // sourceName is the file's path as shown in a preview: inside its folder.
+// Paths are shown with forward slashes on every platform, because that is how
+// they are written in the configuration file.
 func sourceName(folder string, item plan.Item) string {
 	if rel, err := filepath.Rel(folder, item.Source); err == nil && !strings.HasPrefix(rel, "..") {
-		return rel
+		return filepath.ToSlash(rel)
 	}
-	return item.Source
+	return filepath.ToSlash(item.Source)
 }
 
 // destination is where the step puts the file, relative to the folder when it
@@ -101,12 +103,12 @@ func destination(folder string, item plan.Item) string {
 	dir := filepath.Dir(item.Destination)
 	rel, err := filepath.Rel(folder, dir)
 	if err != nil || strings.HasPrefix(rel, "..") {
-		return dir
+		return filepath.ToSlash(dir)
 	}
 	if rel == "." {
 		return "./"
 	}
-	return rel + "/"
+	return filepath.ToSlash(rel) + "/"
 }
 
 // skippedLine summarises the files a folder left alone, the way the README
