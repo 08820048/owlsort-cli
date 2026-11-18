@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -988,17 +989,34 @@ func TestKeepRemoveAllowsTidyingAgain(t *testing.T) {
 	}
 }
 
+// fakeEditor writes a stand-in editor that runs body with the file as its first
+// argument. It is a shell script on Unix and a batch file on Windows: a test that
+// only wrote .sh would be testing nothing at all on one of the three platforms.
+func fakeEditor(t *testing.T, unixBody, windowsBody string) string {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		path := filepath.Join(t.TempDir(), "editor.bat")
+		if err := os.WriteFile(path, []byte(windowsBody), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	path := filepath.Join(t.TempDir(), "editor.sh")
+	if err := os.WriteFile(path, []byte("#!/bin/sh\n"+unixBody), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
 func TestRulesEditOpensAnEditorAndChecksTheResult(t *testing.T) {
 	folder := t.TempDir()
 	path := writeConfigText(t, configText(folder))
 
-	// A stand-in editor: a shell script that comments out a rule, so the file is
-	// still valid and the command can say so.
-	editor := filepath.Join(t.TempDir(), "editor.sh")
-	script := "#!/bin/sh\nprintf '\\n# edited by the test\\n' >> \"$1\"\n"
-	if err := os.WriteFile(editor, []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	// A stand-in editor that only adds a comment, so the file stays valid.
+	editor := fakeEditor(t,
+		"printf '\\n# edited by the test\\n' >> \"$1\"\n",
+		"@echo off\r\n>>\"%1\" echo.\r\n>>\"%1\" echo # edited by the test\r\n",
+	)
 	t.Setenv("VISUAL", editor)
 
 	out, err := withStdin(t, true, "", "rules", "edit", "--config", path)
@@ -1021,12 +1039,11 @@ func TestRulesEditReportsWhatTheEditorBroke(t *testing.T) {
 	folder := t.TempDir()
 	path := writeConfigText(t, configText(folder))
 
-	editor := filepath.Join(t.TempDir(), "editor.sh")
-	// Removes a required key, which the next load refuses.
-	script := "#!/bin/sh\nprintf 'conflict = \"overwrite\"\\n' > \"$1\"\n"
-	if err := os.WriteFile(editor, []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	// Writes a configuration with an invalid value, which the next load refuses.
+	editor := fakeEditor(t,
+		"printf 'conflict = \"overwrite\"\\n' > \"$1\"\n",
+		"@echo off\r\n>\"%1\" echo conflict = \"overwrite\"\r\n",
+	)
 	t.Setenv("VISUAL", editor)
 
 	out, err := withStdin(t, true, "", "rules", "edit", "--config", path)

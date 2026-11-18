@@ -3,6 +3,7 @@ package atomicfile
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -22,6 +23,10 @@ func TestWriteReplacesTheFile(t *testing.T) {
 	}
 	if string(got) != "new" {
 		t.Errorf("content = %q", got)
+	}
+	if runtime.GOOS == "windows" {
+		// Windows has no file permission bits worth asserting on.
+		return
 	}
 	info, err := os.Stat(path)
 	if err != nil {

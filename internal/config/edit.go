@@ -20,7 +20,8 @@ import (
 // The write goes to a temporary file in the same folder and is renamed over the
 // target, so the file is never half-written. A symlink is followed rather than
 // replaced, because a configuration kept in dotfiles is usually a link and
-// replacing it would quietly break the setup it points at.
+// replacing it would quietly break the setup it points at. Its permissions are
+// kept; Windows has no such bits, so there the file is whatever Windows makes it.
 //
 // changed is false when fn made no edit, so a caller can say so.
 func Edit(path string, fn func(*tomledit.Doc) error) (changed bool, err error) {

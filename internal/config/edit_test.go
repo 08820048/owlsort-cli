@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -150,6 +151,9 @@ func TestEditWritesNothingWhenTheChangeFails(t *testing.T) {
 }
 
 func TestEditKeepsTheFileMode(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows has no file permission bits to keep")
+	}
 	path := writeConfigFile(t, "folders = []\n")
 	if err := os.Chmod(path, 0o640); err != nil {
 		t.Fatal(err)
