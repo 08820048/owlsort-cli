@@ -30,7 +30,7 @@ type Config struct {
 	Folders []string `toml:"folders"`
 	// Keep lists files and folders that no rule ever touches.
 	Keep []string `toml:"keep"`
-	// Conflict is the default for every rule.
+	// Conflict is the default for every rule. A rule may say its own.
 	Conflict Conflict `toml:"conflict"`
 	// Language is "", "en" or "zh-Hans"; empty follows the environment.
 	Language string `toml:"language"`
@@ -50,6 +50,10 @@ type Rule struct {
 	CopyTo string `toml:"copy_to"`
 	Rename string `toml:"rename"` // a template; the folder stays
 	Trash  bool   `toml:"trash"`  // to the system trash, never a permanent delete
+
+	// Conflict overrides the file's default for this rule alone. Empty means
+	// "use the file's".
+	Conflict Conflict `toml:"conflict"`
 
 	Subfolders bool `toml:"subfolders"` // also tidy files below the top level
 	Background bool `toml:"background"` // may run unattended in `watch` (trash needs this)
@@ -194,6 +198,11 @@ func (c Config) Problems() []Problem {
 
 		if r.Match != "" && r.Match != "all" && r.Match != "any" {
 			add(r.Name, "%s: match must be \"all\" or \"any\", not %q", label, r.Match)
+		}
+		switch r.Conflict {
+		case "", ConflictRename, ConflictSkip:
+		default:
+			add(r.Name, "%s: conflict must be \"%s\" or \"%s\", not %q", label, ConflictRename, ConflictSkip, r.Conflict)
 		}
 		if len(r.When) == 0 {
 			add(r.Name, "%s has no conditions (when)", label)

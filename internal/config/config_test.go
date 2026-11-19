@@ -110,3 +110,19 @@ func TestEveryProblemIsReported(t *testing.T) {
 		}
 	}
 }
+
+func TestARuleMaySetItsOwnConflictStrategy(t *testing.T) {
+	source := "conflict = 'rename'\n[[rule]]\nname = 'a'\nwhen = [{ ext = ['pdf'] }]\nmove_to = 'x'\nconflict = 'skip'\n"
+	cfg, err := Parse([]byte(source))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Rules[0].Conflict != ConflictSkip {
+		t.Errorf("rule conflict = %q, want %q", cfg.Rules[0].Conflict, ConflictSkip)
+	}
+
+	bad := "[[rule]]\nname = 'a'\nwhen = [{ ext = ['pdf'] }]\nmove_to = 'x'\nconflict = 'overwrite'\n"
+	if _, err := Parse([]byte(bad)); err == nil {
+		t.Error("a rule was allowed a conflict strategy that does not exist")
+	}
+}

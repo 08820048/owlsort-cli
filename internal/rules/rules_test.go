@@ -2,7 +2,6 @@ package rules
 
 import (
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -309,20 +308,93 @@ func TestExplainAgreesWithThePlan(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	planned := map[string]bool{}
+	planned := map[string]plan.Item{}
 	for _, item := range p.Folders[0].Items {
-		planned[item.Source] = true
+		planned[item.Source] = item
 	}
 	for _, f := range files {
-		text, err := Explain(f, c, nil, testEnv())
+		e, err := Explain(f, c, nil, testEnv())
 		if err != nil {
 			t.Fatal(err)
 		}
-		moves := strings.Contains(text, "moves to")
-		if moves != planned[f.Path] {
-			t.Errorf("%s: explain says %q, plan planned=%v", f.Name, text, planned[f.Path])
+		item, want := planned[f.Path]
+		if e.Planned != want {
+			t.Errorf("%s: explain says planned=%v, the plan says %v", f.Name, e.Planned, want)
+		}
+		if !want {
+			if e.Rule != "" || e.Filed || e.Skip != "" {
+				t.Errorf("%s: left alone for a reason the plan does not give: %+v", f.Name, e)
+			}
+			continue
+		}
+		if e.Rule != item.Rule || e.Action != item.Action || e.Destination != item.Destination {
+			t.Errorf("%s: explain says %+v, the plan says %+v", f.Name, e, item)
 		}
 	}
 }
 
+func TestExplainSaysWhyAFileIsSkipped(t *testing.T) {
+	kept := mk("/w", "kept.pdf", 10, now)
+	guard := staticGuard{kept.Path: plan.SkipKept}
+	e, err := Explain(kept, config.Default(i18n.English), guard, testEnv())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e.Skip != plan.SkipKept || e.Planned {
+		t.Errorf("got %+v", e)
+	}
+}
+
+func TestExplainKnowsAFileThatIsAlreadyFiled(t *testing.T) {
+	filed := mk("/w", "a.pdf", 10, now)
+	filed.Path = "/w/Documents/PDF/a.pdf"
+
+	c := config.Config{
+		Conflict: config.ConflictRename,
+		Rules: []config.Rule{{
+			Name:       "PDFs",
+			When:       []config.Condition{{Ext: []string{"pdf"}}},
+			MoveTo:     "Documents/PDF",
+			Subfolders: true, // the rule that files into a subfolder has to reach it
+		}},
+	}
+	e, err := Explain(filed, c, nil, testEnv())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !e.Filed || e.Planned || e.Rule != "PDFs" {
+		t.Errorf("got %+v", e)
+	}
+}
+
+func TestExplainKnowsARuleThatNeedsAForegroundRun(t *testing.T) {
+	target := t.TempDir()
+	c := cfg(config.Rule{Name: "abs", When: []config.Condition{{Ext: []string{"pdf"}}}, MoveTo: target})
+	env := testEnv()
+	env.Unattended = true
+	e, err := Explain(mk("/w", "a.pdf", 10, now), c, nil, env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !e.NeedsForeground || e.Planned || e.Rule != "abs" {
+		t.Errorf("got %+v", e)
+	}
+}
+
 func intp(v int) *int { return &v }
+
+func TestARulesConflictStrategyReachesThePlan(t *testing.T) {
+	c := cfg(config.Rule{
+		Name:     "strict",
+		When:     []config.Condition{{Ext: []string{"pdf"}}},
+		MoveTo:   "Docs",
+		Conflict: config.ConflictSkip,
+	})
+	p := plan1(t, []scan.File{mk("/w", "a.pdf", 10, now)}, c, nil, testEnv())
+	if p.Count() != 1 {
+		t.Fatalf("got %+v", p.Folders[0])
+	}
+	if got := p.Folders[0].Items[0].Conflict; got != string(config.ConflictSkip) {
+		t.Errorf("Conflict = %q, want %q", got, config.ConflictSkip)
+	}
+}

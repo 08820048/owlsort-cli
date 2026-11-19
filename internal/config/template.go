@@ -67,6 +67,9 @@ func Template(lang i18n.Language, folders []string) []byte {
 		if r.Match != "" {
 			w("match = %s", quote(r.Match))
 		}
+		if r.Conflict != "" {
+			w("conflict = %s", quote(string(r.Conflict)))
+		}
 		if r.Subfolders {
 			w("subfolders = true")
 		}

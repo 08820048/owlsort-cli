@@ -154,8 +154,12 @@ func runStep(item plan.Item, opts Options) stepOutcome {
 	}
 
 	// Never overwrite: a clash is resolved by the strategy, and both strategies
-	// leave every existing file alone.
-	target, ok, err := resolve(item.Destination, opts.Conflict)
+	// leave every existing file alone. The rule may ask for one of its own.
+	conflict := opts.Conflict
+	if item.Conflict != "" {
+		conflict = config.Conflict(item.Conflict)
+	}
+	target, ok, err := resolve(item.Destination, conflict)
 	if err != nil {
 		return stepOutcome{err: err}
 	}

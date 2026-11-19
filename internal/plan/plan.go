@@ -61,6 +61,10 @@ type Item struct {
 	Action      Action `json:"action"`
 	Rule        string `json:"rule"`
 
+	// Conflict is the strategy this step's rule asked for, or "" to use the
+	// file's default. It is not part of the --json shape.
+	Conflict string `json:"-"`
+
 	// Size and Modified are what the preview saw. The executor compares them
 	// with the file right before it moves it, so a file that changed in the
 	// meantime is skipped instead of moved (docs/safety-model.md, rule 7).

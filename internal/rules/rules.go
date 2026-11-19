@@ -186,7 +186,10 @@ func perform(f scan.File, r config.Rule, env Env) (plan.Item, state, error) {
 		return plan.Item{}, stateNone, nil
 	}
 
-	item := plan.Item{Source: f.Path, Rule: r.Name, Size: f.Size, Modified: f.Modified}
+	item := plan.Item{
+		Source: f.Path, Rule: r.Name, Size: f.Size, Modified: f.Modified,
+		Conflict: string(r.Conflict),
+	}
 	switch {
 	case r.Trash:
 		item.Action = plan.Trash
@@ -460,41 +463,54 @@ func hasParentStep(dest string) bool {
 	return false
 }
 
-// Explain says why a file is, or is not, going to be tidied: the rule and the
-// protection that decided it. It runs the same skipReason and decide code as
-// Build, so it cannot disagree with `preview`.
-func Explain(f scan.File, cfg config.Config, guard protect.Guard, env Env) (string, error) {
+// Explained is the answer `owlsort explain` gives about one file: what would
+// happen to it, and why. It is a value rather than a sentence so the text and
+// `--json` cannot say different things; the words live in internal/output, which
+// is where every other thing the program says to a person lives.
+type Explained struct {
+	Path        string      `json:"path"`
+	Planned     bool        `json:"planned"`
+	Rule        string      `json:"rule,omitempty"`
+	Action      plan.Action `json:"action,omitempty"`
+	Destination string      `json:"destination,omitempty"`
+	// Skip is why the file is left alone, when something decided that before any
+	// rule was tried (protection, kept, hidden, still downloading).
+	Skip plan.SkipReason `json:"skip,omitempty"`
+	// Filed means a rule covers the file and the file is already where that rule
+	// would put it, so there is nothing to do.
+	Filed bool `json:"filed,omitempty"`
+	// NeedsForeground means a rule matched, but may not do this unattended.
+	NeedsForeground bool `json:"needs_foreground,omitempty"`
+}
+
+// Explain says why a file is, or is not, going to be tidied. It runs the same
+// skipReason and decide code as Build, so it cannot disagree with `preview`.
+func Explain(f scan.File, cfg config.Config, guard protect.Guard, env Env) (Explained, error) {
+	out := Explained{Path: f.Path}
 	if err := cfg.Validate(); err != nil {
-		return "", err
+		return Explained{}, err
 	}
 	env = env.withDefaults()
 
 	if reason := skipReason(f, guard); reason != "" {
-		return fmt.Sprintf("%s is left alone: %s.", f.Path, reason.Text()), nil
+		out.Skip = reason
+		return out, nil
 	}
 
 	item, st, err := decide(f, cfg, env)
 	if err != nil {
-		return "", err
+		return Explained{}, err
 	}
 	switch st {
 	case stateNeedsForeground:
-		return fmt.Sprintf("%s is left alone: rule %q may only do this when run by hand.", f.Path, item.Rule), nil
+		out.Rule, out.NeedsForeground = item.Rule, true
 	case stateNone:
 		if item.Rule != "" {
-			return fmt.Sprintf("%s is already filed: rule %q would put it exactly where it is.", f.Path, item.Rule), nil
+			out.Rule, out.Filed = item.Rule, true
 		}
-		return fmt.Sprintf("%s is left alone: no rule covers it.", f.Path), nil
+	case statePlanned:
+		out.Planned = true
+		out.Rule, out.Action, out.Destination = item.Rule, item.Action, item.Destination
 	}
-
-	switch item.Action {
-	case plan.Trash:
-		return fmt.Sprintf("%s goes to the system trash, by rule %q.", f.Path, item.Rule), nil
-	case plan.Rename:
-		return fmt.Sprintf("%s is renamed to %s, by rule %q.", f.Path, filepath.Base(item.Destination), item.Rule), nil
-	case plan.Copy:
-		return fmt.Sprintf("%s is copied to %s, by rule %q.", f.Path, item.Destination, item.Rule), nil
-	default:
-		return fmt.Sprintf("%s moves to %s, by rule %q.", f.Path, item.Destination, item.Rule), nil
-	}
+	return out, nil
 }

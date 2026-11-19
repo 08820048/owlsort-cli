@@ -476,3 +476,57 @@ func TestAFailedStepIsRecordedAndTheRestGoOn(t *testing.T) {
 		t.Error("the step after the failure did not run")
 	}
 }
+
+func TestARuleCanAskForItsOwnConflictStrategy(t *testing.T) {
+	// The safety model says "the rule's conflict decides", so a rule that asks for
+	// `skip` must skip even when the file's default is `rename`.
+	f := newFixture(t)
+	src := f.write(t, "report.pdf", 10)
+	dst := filepath.Join(f.dir, "Documents", "report.pdf")
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(dst, []byte("already here"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	item := f.item(t, src, dst)
+	item.Conflict = string(config.ConflictSkip)
+
+	res, err := Run(f.plan(item), f.j, Options{Conflict: config.ConflictRename, Now: f.now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Done != 0 || len(res.Skipped) != 1 || res.Skipped[0].Reason != plan.SkipConflict {
+		t.Fatalf("got %+v: the rule's strategy was ignored", res)
+	}
+	if _, err := os.Stat(src); err != nil {
+		t.Error("the file was moved anyway")
+	}
+	if got, err := os.ReadFile(dst); err != nil || string(got) != "already here" {
+		t.Errorf("the existing file was overwritten: %q %v", got, err)
+	}
+}
+
+func TestARuleWithoutAConflictStrategyUsesTheFilesDefault(t *testing.T) {
+	f := newFixture(t)
+	src := f.write(t, "report.pdf", 10)
+	dst := filepath.Join(f.dir, "Documents", "report.pdf")
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(dst, []byte("already here"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := Run(f.plan(f.item(t, src, dst)), f.j, Options{Conflict: config.ConflictRename, Now: f.now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Done != 1 {
+		t.Fatalf("got %+v", res)
+	}
+	if _, err := os.Stat(filepath.Join(f.dir, "Documents", "report 2.pdf")); err != nil {
+		t.Error("the default strategy (rename) was not used")
+	}
+}
