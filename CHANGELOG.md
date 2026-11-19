@@ -8,6 +8,13 @@ All notable changes are listed here. The format follows
 
 ### Added
 
+- A rule may set its own `conflict`, overriding the file's. The safety model always
+  said "the rule's `conflict` decides", but only a file-wide one existed — and an
+  unknown key is an error, so following the document was blocked by the loader
+  (decisions.md, D14).
+- `explain --json`: `{path, planned, rule, action, destination}` when the file would be
+  tidied, with `skip`, `filed` or `needs_foreground` saying why when it would not.
+
 - `rules list`, `rules show`, `rules enable`, `rules disable` and `rules edit`: see the
   rules, switch one off without deleting it, or open the file in `$EDITOR` and have it
   checked when the editor exits.

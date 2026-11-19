@@ -24,7 +24,7 @@ Unknown keys are errors too, so a typo (`move-to`) is caught instead of ignored.
 ```toml
 folders  = ["~/Downloads", "~/Desktop"]   # watched folders; "~" is the home folder
 keep     = ["~/Downloads/Taxes"]          # never touched: files or folders
-conflict = "rename"                       # "rename" (default) or "skip"
+conflict = "rename"                       # "rename" (default) or "skip"; a rule may override it
 language = ""                             # "", "en" or "zh-Hans"; empty follows LANG
 ```
 
@@ -51,6 +51,7 @@ move_to = "Pictures/Screenshots" # exactly one action (below)
 | `enabled` | `false` switches a rule off without deleting it |
 | `match` | `"all"` every condition, `"any"` one is enough |
 | `when` | list of conditions |
+| `conflict` | `rename` or `skip` for **this rule**, overriding the file's `conflict` |
 | `subfolders` | also tidy files below the top level (default `false`) |
 | `background` | may run unattended in `watch`; `trash` rules need it |
 | `continue` | after this rule, keep trying later rules (default: stop) |
@@ -63,6 +64,12 @@ move_to = "Pictures/Screenshots" # exactly one action (below)
 | `copy_to = "folder"` | copy into a folder |
 | `rename = "template"` | rename in place |
 | `trash = true` | send to the system trash. There is no delete |
+
+A name clash is settled by the `conflict` strategy: `rename` keeps both
+(`report 2.pdf`), `skip` leaves the file where it is. The top-level `conflict` is
+the default for every rule, and a rule may set its own — a rule that files into a
+folder you also keep things in by hand often wants `skip` while the rest of the file
+wants `rename`.
 
 A relative destination that contains `..` is rejected. An absolute destination is
 allowed when run by hand and is never run unattended.

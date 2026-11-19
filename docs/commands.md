@@ -101,6 +101,25 @@ moment the editor exits — an editor's save cannot be hooked, so that is the cl
 "validate on save" gets. Your edit is never thrown away: a file that no longer loads
 is reported and left as you saved it.
 
+### `explain` (draft; version 1)
+
+`explain <file>` runs the same rules as `preview` over one file and says what would
+happen to it, and why: the rule and action that take it, or the protection, the
+missing rule, or the "already filed there" that stops it.
+
+```json
+{
+  "path": "/Users/me/Downloads/report-final.pdf",
+  "planned": true,
+  "rule": "PDFs",
+  "action": "move",
+  "destination": "/Users/me/Downloads/Documents/PDF/report-final.pdf"
+}
+```
+
+When the file is left alone, `planned` is false and one of `skip` (with a reason
+from the fixed set), `filed` or `needs_foreground` says why.
+
 ### `rules check`
 
 One line per problem, then a summary. A **mistake** (something the configuration
