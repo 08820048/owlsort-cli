@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest # codesign and notarytool are what this job is for
     steps:
       - uses: actions/checkout@v4
         with:
@@ -22,16 +22,40 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: The tag and the source agree
-        # A tag that does not match the tree is the mistake worth catching first:
-        # every archive would carry a version number that is not what was tested.
+      - name: The tree is what will ship
         run: |
           set -eu
           go vet ./...
           go test ./...
           test -z "$(gofmt -l .)" || (gofmt -l .; exit 1)
 
-      - name: Build every platform
+      - name: The macOS signing secrets are there
+        # An unsigned macOS binary from the internet is blocked by Gatekeeper for
+        # everyone who downloads it in a browser. Shipping one and hoping is worse
+        # than not shipping: this fails the release instead.
+        env:
+          MACOS_SIGN_P12: ${{ secrets.MACOS_SIGN_P12 }}
+          MACOS_SIGN_PASSWORD: ${{ secrets.MACOS_SIGN_PASSWORD }}
+          MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+          MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
+          MACOS_NOTARY_KEY: ${{ secrets.MACOS_NOTARY_KEY }}
+        run: |
+          set -eu
+          missing=""
+          for name in MACOS_SIGN_P12 MACOS_SIGN_PASSWORD MACOS_NOTARY_KEY_ID \
+            MACOS_NOTARY_ISSUER_ID MACOS_NOTARY_KEY; do
+            eval "value=\$$name"
+            [ -n "$value" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "These secrets are not set:$missing"
+            echo "docs/release.md says how to make each one. Without them the macOS"
+            echo "binaries would be unsigned, and unusable for most people."
+            exit 1
+          fi
+          echo "signing secrets present"
+
+      - name: Build, sign, notarize, publish
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
@@ -40,6 +64,33 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CGO_ENABLED: "0"
+          MACOS_SIGN_P12: ${{ secrets.MACOS_SIGN_P12 }}
+          MACOS_SIGN_PASSWORD: ${{ secrets.MACOS_SIGN_PASSWORD }}
+          MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+          MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
+          MACOS_NOTARY_KEY: ${{ secrets.MACOS_NOTARY_KEY }}
+
+      - name: The macOS binaries really are signed and notarized
+        # "The release succeeded" is not evidence. scripts/verify-macos-signature.sh
+        # opens an archive and asks macOS: which certificate signed this, and would
+        # Gatekeeper run it? It is a script, and it is tested, because the obvious
+        # check — codesign --verify — passes on an unsigned Go binary.
+        run: |
+          set -eu
+          tag="${GITHUB_REF_NAME}"
+          found=0
+          for archive in dist/owlsort_*_darwin_*.tar.gz; do
+            case "$(basename "$archive")" in
+            *"${tag#v}"*) ;;
+            *) continue ;;
+            esac
+            found=$((found + 1))
+            sh scripts/verify-macos-signature.sh "$archive"
+          done
+          [ "$found" -ge 2 ] || {
+            echo "expected two darwin archives, verified $found"
+            exit 1
+          }
 
       - name: The release page has what the installer expects
         env:
@@ -62,6 +113,4 @@ jobs:
           echo "every archive the installer asks for is there"
 
 # TODO(M4), when the machinery exists (docs/release.md):
-#   - macOS signing and notarization, so a downloaded binary is not blocked by
-#     Gatekeeper. Needs an Apple Developer ID and an App Store Connect key.
 #   - Homebrew tap, Scoop bucket, winget: each needs its own repository and token.
