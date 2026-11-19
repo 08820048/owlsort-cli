@@ -90,6 +90,20 @@ jobs:
           done
           echo "archives contain the binary and the documents"
 
+  signature-check:
+    # The guard that stops a release shipping an unsigned macOS binary. Its failure
+    # case is tested against a real unsigned Go build, because a guard that passes
+    # for the wrong reason is worse than none.
+    name: signature check
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: The check refuses an unsigned binary
+        run: sh scripts/test-signature-check.sh
+
   install:
     # install.sh is piped into `sh`, so it is the one script whose bug costs the
     # user their trust rather than their time. Its checksum step is tested here on
