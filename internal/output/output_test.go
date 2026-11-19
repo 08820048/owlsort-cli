@@ -79,3 +79,31 @@ func TestPreviewWithNothingToDoSaysSo(t *testing.T) {
 		t.Errorf("said %q", out.String())
 	}
 }
+
+func TestExplainInWords(t *testing.T) {
+	cases := []struct {
+		name  string
+		input rulesExplained
+		want  []string
+	}{
+		{"moves", rulesExplained{Path: "/w/a.pdf", Planned: true, Rule: "PDFs", Action: plan.Move, Destination: "/w/Documents/PDF/a.pdf"}, []string{"moves to", `"PDFs"`}},
+		{"copies", rulesExplained{Path: "/w/a.pdf", Planned: true, Rule: "B", Action: plan.Copy, Destination: "/w/Bak/a.pdf"}, []string{"copied to", `"B"`}},
+		{"renames", rulesExplained{Path: "/w/a.pdf", Planned: true, Rule: "R", Action: plan.Rename, Destination: "/w/b.pdf"}, []string{"renamed to b.pdf", `"R"`}},
+		{"trashes", rulesExplained{Path: "/w/a.tmp", Planned: true, Rule: "T", Action: plan.Trash}, []string{"system trash", `"T"`}},
+		{"skipped", rulesExplained{Path: "/w/a.pdf", Skip: plan.SkipKept}, []string{"left alone", "kept"}},
+		{"uncovered", rulesExplained{Path: "/w/a.weird"}, []string{"no rule covers it"}},
+		{"filed", rulesExplained{Path: "/w/a.pdf", Rule: "PDFs", Filed: true}, []string{"already filed", `"PDFs"`}},
+		{"foreground", rulesExplained{Path: "/w/a.pdf", Rule: "Abs", NeedsForeground: true}, []string{"run by hand", `"Abs"`}},
+	}
+	for _, c := range cases {
+		var out bytes.Buffer
+		if err := Explain(&out, c.input); err != nil {
+			t.Fatal(err)
+		}
+		for _, want := range c.want {
+			if !strings.Contains(out.String(), want) {
+				t.Errorf("%s: %q does not mention %q", c.name, out.String(), want)
+			}
+		}
+	}
+}

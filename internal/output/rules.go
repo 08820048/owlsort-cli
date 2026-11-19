@@ -3,10 +3,17 @@ package output
 import (
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 
 	"github.com/08820048/owlsort-cli/internal/config"
+	"github.com/08820048/owlsort-cli/internal/plan"
+	"github.com/08820048/owlsort-cli/internal/rules"
 )
+
+// rulesExplained is rules.Explained, named here so this package's printing reads
+// without a package qualifier on every field.
+type rulesExplained = rules.Explained
 
 // Rules prints the rules of a configuration, one paragraph each, so a person can
 // see what is on and what it does without opening the file.
@@ -71,6 +78,9 @@ func Rule(w io.Writer, r config.Rule, path string, opts Options) error {
 	flags := flagsOf(r)
 	if len(flags) == 0 {
 		flags = []string{"none"}
+	}
+	if r.Conflict != "" {
+		fmt.Fprintf(w, "  conflict  %s  (only if the name is taken)\n", r.Conflict)
 	}
 	fmt.Fprintf(w, "  flags     %s\n", strings.Join(flags, ", "))
 	fmt.Fprintf(w, "  in        %s\n", displayFolder(path))
@@ -224,4 +234,30 @@ func flagsOf(r config.Rule) []string {
 		out = append(out, "background")
 	}
 	return out
+}
+
+// Explain writes what would happen to one file, in a sentence.
+func Explain(w io.Writer, e rulesExplained) error {
+	switch {
+	case e.Skip != "":
+		fmt.Fprintf(w, "%s is left alone: %s.\n", e.Path, e.Skip.Text())
+	case e.NeedsForeground:
+		fmt.Fprintf(w, "%s is left alone: rule %q may only do this when run by hand.\n", e.Path, e.Rule)
+	case e.Filed:
+		fmt.Fprintf(w, "%s is already filed: rule %q would put it exactly where it is.\n", e.Path, e.Rule)
+	case !e.Planned:
+		fmt.Fprintf(w, "%s is left alone: no rule covers it.\n", e.Path)
+	default:
+		switch e.Action {
+		case plan.Trash:
+			fmt.Fprintf(w, "%s goes to the system trash, by rule %q.\n", e.Path, e.Rule)
+		case plan.Rename:
+			fmt.Fprintf(w, "%s is renamed to %s, by rule %q.\n", e.Path, filepath.Base(e.Destination), e.Rule)
+		case plan.Copy:
+			fmt.Fprintf(w, "%s is copied to %s, by rule %q.\n", e.Path, e.Destination, e.Rule)
+		default:
+			fmt.Fprintf(w, "%s moves to %s, by rule %q.\n", e.Path, e.Destination, e.Rule)
+		}
+	}
+	return nil
 }

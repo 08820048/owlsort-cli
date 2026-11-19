@@ -1073,3 +1073,50 @@ func TestRulesEditWithoutAnEditorOrATerminalRefuses(t *testing.T) {
 		t.Errorf("message = %q", err.Error())
 	}
 }
+
+func TestExplainJSONHasTheDocumentedShape(t *testing.T) {
+	folder := t.TempDir()
+	file := filepath.Join(folder, "report-final.pdf")
+	makeFile(t, file, 1024)
+
+	out, err := withStdin(t, false, "", "explain", "--json", file, "--config", writeConfig(t, folder))
+	if err != nil {
+		t.Fatalf("%v:\n%s", err, out)
+	}
+	var got struct {
+		Path        string `json:"path"`
+		Planned     bool   `json:"planned"`
+		Rule        string `json:"rule"`
+		Action      string `json:"action"`
+		Destination string `json:"destination"`
+	}
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatalf("%v:\n%s", err, out)
+	}
+	if !got.Planned || got.Rule != "PDFs" || got.Action != "move" {
+		t.Errorf("got %+v", got)
+	}
+	if !strings.HasSuffix(got.Destination, filepath.Join("Documents", "PDF", "report-final.pdf")) {
+		t.Errorf("destination = %q", got.Destination)
+	}
+}
+
+func TestExplainJSONForAFileLeftAlone(t *testing.T) {
+	folder := t.TempDir()
+	file := filepath.Join(folder, "thing.weird")
+	makeFile(t, file, 10)
+
+	out, err := withStdin(t, false, "", "explain", "--json", file, "--config", writeConfig(t, folder))
+	if err != nil {
+		t.Fatalf("%v:\n%s", err, out)
+	}
+	var got struct {
+		Planned bool `json:"planned"`
+	}
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Planned {
+		t.Errorf("a file no rule covers was reported as planned:\n%s", out)
+	}
+}

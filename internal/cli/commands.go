@@ -111,9 +111,6 @@ func explainCmd(g *flags) *cobra.Command {
 instead of a plan, so the two can never disagree.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if g.JSON {
-				return &ExitError{Code: exitcode.Usage, Message: "explain has no --json shape yet (see docs/commands.md)"}
-			}
 			s, err := load(g)
 			if err != nil {
 				return err
@@ -122,12 +119,15 @@ instead of a plan, so the two can never disagree.`,
 			if err != nil {
 				return &ExitError{Code: exitcode.Error, Message: err.Error()}
 			}
-			text, err := rules.Explain(f, s.cfg, protect.New(s.cfg), s.env)
+			explained, err := rules.Explain(f, s.cfg, protect.New(s.cfg), s.env)
 			if err != nil {
 				return &ExitError{Code: exitcode.Usage, Message: err.Error()}
 			}
-			fmt.Fprintln(cmd.OutOrStdout(), text)
-			return nil
+			out := cmd.OutOrStdout()
+			if g.JSON {
+				return writeJSONOrFail(cmd, explained)
+			}
+			return fail(output.Explain(out, explained))
 		},
 	}
 }

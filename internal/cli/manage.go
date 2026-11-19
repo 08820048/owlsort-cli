@@ -341,6 +341,7 @@ type ruleOut struct {
 	Name       string   `json:"name"`
 	Enabled    bool     `json:"enabled"`
 	Match      string   `json:"match,omitempty"`
+	Conflict   string   `json:"conflict,omitempty"`
 	Continue   bool     `json:"continue,omitempty"`
 	Subfolders bool     `json:"subfolders,omitempty"`
 	Background bool     `json:"background,omitempty"`
@@ -352,6 +353,7 @@ type ruleOut struct {
 func ruleOutOf(r config.Rule) ruleOut {
 	out := ruleOut{
 		Name: r.Name, Enabled: r.IsEnabled(), Match: r.Match,
+		Conflict: string(r.Conflict),
 		Continue: r.Continue, Subfolders: r.Subfolders, Background: r.Background,
 		When: conditionTexts(r),
 	}
