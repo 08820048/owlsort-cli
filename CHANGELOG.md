@@ -25,6 +25,7 @@ All notable changes are listed here. The format follows
 - Moving, copying, renaming and trashing, with the system trash on macOS, Linux and
   Windows.
 - An append-only journal that `undo` reads backwards.
+- Moves between two volumes copy, check the copy, and only then remove the original.
 - A commented configuration file that `init` writes.
 - `docs/install.md` and `docs/release.md`.
 - CI that builds the release and tests the installer on every push.

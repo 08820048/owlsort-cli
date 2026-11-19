@@ -41,8 +41,7 @@ Goal: tidy, undo, restart the terminal, the history is still there.
 - [x] `internal/apply`: step-by-step run, re-check before each step, conflict strategies, cross-volume move
 - [x] `internal/trash` for macOS, Linux, Windows (macOS tested here; the other two by CI)
 - [x] `tidy` (confirmation, no-terminal rule), `undo` (checks first), `history`
-- [ ] Tests for safety rules 1, 2, 3, 5, 6, 7, 11 — 1, 2, 3, 5, 6, 7 are covered; 11
-      needs two volumes (below)
+- [x] Tests for safety rules 1, 2, 3, 5, 6, 7, 11
 
 Done when: tidy then undo restores a folder exactly, on all three systems, including after a clash and after the user moved a file in between.
 

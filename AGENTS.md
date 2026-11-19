@@ -37,10 +37,14 @@ make cross          # six platform builds; proves nothing needs cgo or a platfor
 make release-check  # goreleaser check + a snapshot build; CI runs this on every push
 make install-test   # run install.sh against a fake release, on this machine
 make signature-test # prove the release guard refuses an unsigned macOS binary
+make cross-volume-test # move files between two real volumes (macOS makes one)
 ```
 
 ## Rules that are easy to break by accident
 
+- **A test that needs something the machine may not have skips, and says so.** The
+  cross-volume tests skip without a second volume; `make cross-volume-test` provides
+  one on macOS. A skip is honest; a test that quietly proves nothing is not.
 - **Never run the program, or a test, against the real Downloads, Desktop or
   Documents.** Use `t.TempDir()` or a throwaway folder under `/tmp`. This applies to
   you, an assistant, too: do not "try it" on the user's real folders.
