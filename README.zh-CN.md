@@ -41,7 +41,9 @@ owlsort init && owlsort preview
 go install github.com/08820048/owlsort-cli/cmd/owlsort@latest
 ```
 
-macOS 的二进制用 Developer ID 签名并经过公证，下载后可以直接运行。
+正式发布的 macOS 二进制会用 Developer ID 签名并经过公证，下载后可以直接运行；
+发布流程拒绝发布未签名的版本。目前还没有发布过任何版本，所以现在只能用源码安装：
+`go install github.com/08820048/owlsort-cli/cmd/owlsort@latest`。
 详见 [docs/install.md](docs/install.md)。
 
 ## 原则

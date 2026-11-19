@@ -35,14 +35,17 @@ go install github.com/08820048/owlsort-cli/cmd/owlsort@latest
 
 This is also the way round the macOS Gatekeeper problem below.
 
-## macOS: signed and notarized
+## macOS: how a release will be signed
 
-The macOS binaries are signed with a Developer ID and notarized by Apple, so a
-downloaded copy runs without the Gatekeeper warning. The release workflow will not
-publish a version without it ([release.md](release.md)).
+**No version has been released yet**, so there is no binary to download: build it
+from source (below). When there is one, it will be signed with a Developer ID and
+notarized by Apple, and the release workflow refuses to publish a version that is
+not ([release.md](release.md)). The signing is set up and its guard is tested; what
+is missing is the certificate in this repository's secrets, and the first release to
+use it.
 
-If a build you have does get blocked, it was not signed — check that you downloaded
-it from the releases page of this repository, and that the checksum matches. Then
+If a build you have does get blocked by Gatekeeper, it is not signed — check that it
+came from the releases page of this repository and that the checksum matches. Then
 either:
 
 - **Build it yourself**, which is always fine and needs only Go:

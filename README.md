@@ -56,8 +56,11 @@ nothing if it does not match. Or build it yourself, which needs only Go:
 go install github.com/08820048/owlsort-cli/cmd/owlsort@latest
 ```
 
-The macOS binaries are signed with a Developer ID and notarized, so a download runs
-without a Gatekeeper warning. More in [docs/install.md](docs/install.md).
+Released macOS binaries will be signed with a Developer ID and notarized, so a
+download runs without a Gatekeeper warning; the release workflow refuses to publish
+unsigned. Nothing has been released yet, so today the way to get a binary is to
+build it: `go install github.com/08820048/owlsort-cli/cmd/owlsort@latest`.
+More in [docs/install.md](docs/install.md).
 
 ## Platforms
 
