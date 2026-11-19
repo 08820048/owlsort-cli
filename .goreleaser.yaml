@@ -1,12 +1,15 @@
-# GoReleaser configuration (v2). Not yet exercised: the first run of
-# `make snapshot` may need small fixes. See docs/roadmap.md, milestone M4.
+# GoReleaser configuration (v2). `make snapshot` builds every platform locally;
+# `make release-check` is what CI runs on every push, so this file can never rot
+# unnoticed again the way it did before its first real run (roadmap.md, M4).
 version: 2
 
 project_name: owlsort
 
 before:
   hooks:
-    - go mod tidy
+    # The archives carry the licence and the two documents a user may need before
+    # they run anything (TRADEMARK explains what the name is not covered by).
+    - go mod verify
 
 builds:
   - id: owlsort
@@ -28,18 +31,39 @@ archives:
     files:
       - LICENSE
       - README.md
+      - README.zh-CN.md
       - TRADEMARK.md
 
 checksum:
   name_template: checksums.txt
 
+# The release notes are the hand-written entry in CHANGELOG.md: one sentence per
+# change, what was done and nothing else. A changelog generated from commit
+# messages would be a paragraph per line and would say it a second, differently
+# worded way.
 changelog:
-  use: github
-  groups:
-    - title: Added
-      regexp: '^feat'
-    - title: Fixed
-      regexp: '^fix'
+  disable: true
 
-# TODO(M4): macOS signing and notarization (Developer ID + notarytool) for the
-# darwin binaries, the Homebrew tap (brews:), Scoop (scoops:) and winget.
+release:
+  # A tag that does not start with "v" is a mistake, not a release.
+  mode: replace
+  name_template: "{{ .Tag }}"
+  header: |
+    See [CHANGELOG.md](https://github.com/08820048/owlsort-cli/blob/main/CHANGELOG.md)
+    for what changed in this version.
+  footer: |
+    **Before you tidy anything real:** `owlsort preview` moves nothing. Run it first.
+
+    macOS binaries are not signed or notarized, so a downloaded one is blocked by
+    Gatekeeper until you allow it (see docs/install.md). Building from source with
+    `go install github.com/08820048/owlsort-cli/cmd/owlsort@latest` avoids that.
+
+# TODO(M4), each waiting on something outside this repository:
+#
+#   brews:   a tap repository (08820048/homebrew-owlsort) and a HOMEBREW_TAP_TOKEN
+#   scoops:  a bucket repository and its token
+#   winget:  a pull request to microsoft/winget-pkgs
+#   notarize: an Apple Developer ID certificate and an App Store Connect key
+#
+# docs/release.md lists what each one needs and the order to do them in. None of
+# them can be added as a disabled stanza here without `goreleaser check` failing.
