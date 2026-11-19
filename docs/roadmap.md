@@ -85,10 +85,23 @@ reason (D13).
 
 ## M4: release
 
-- [ ] GoReleaser run for real: archives, checksums, changelog
-- [ ] macOS: Developer ID signing and notarization
-- [ ] Homebrew tap, Scoop, winget, install script
-- [ ] README in English and Chinese, man page, SECURITY, TRADEMARK, CONTRIBUTING final pass
+- [x] GoReleaser run for real: six archives, checksums, and a CI job that runs it on
+      every push so the configuration cannot rot again
+- [x] `install.sh`, with the download checked against `checksums.txt` before anything
+      is installed, tested end to end against a fake release on every push
+- [x] `docs/install.md` and `docs/release.md`; README in English and Chinese
+- [ ] macOS: Developer ID signing and notarization — needs a paid Apple Developer
+      account, which this project does not have yet
+- [ ] Homebrew tap (needs a tap repository), Scoop, winget
+- [ ] A man page; a final pass over SECURITY, TRADEMARK, CONTRIBUTING
+- [ ] The first tagged release
+
+State (2026-11-19): everything that does not need an account somewhere else is done.
+`make release-check` builds all six archives locally and CI runs it on every push; the
+installer is tested on Linux and macOS against a fake release, including a corrupted
+download and a missing checksums file. What is left needs a person: an Apple
+Developer ID to sign with, repositories for the package managers, and the decision to
+tag.
 
 ## Later
 

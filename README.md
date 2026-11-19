@@ -42,9 +42,28 @@ $ owlsort undo          # put the last run back
 
 The full list, with the test that proves each, is in [docs/safety-model.md](docs/safety-model.md).
 
+## Install
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/08820048/owlsort-cli/main/install.sh | sh
+owlsort init && owlsort preview
+```
+
+The installer checks the download against the release's `checksums.txt` and installs
+nothing if it does not match. Or build it yourself, which needs only Go:
+
+```sh
+go install github.com/08820048/owlsort-cli/cmd/owlsort@latest
+```
+
+macOS binaries are **not signed or notarized** yet, so a downloaded one is blocked
+by Gatekeeper until you allow it — building it yourself avoids that entirely. More
+in [docs/install.md](docs/install.md).
+
 ## Platforms
 
 macOS, Linux and Windows, as a single static binary with nothing to install first.
+A test builds all six targets from one machine on every push, so this stays true.
 
 ## Documentation
 
@@ -54,6 +73,8 @@ macOS, Linux and Windows, as a single static binary with nothing to install firs
 | [docs/architecture.md](docs/architecture.md) | how it is built, package by package |
 | [docs/config.md](docs/config.md) | the configuration file |
 | [docs/commands.md](docs/commands.md) | commands, flags, exit codes, JSON output |
+| [docs/install.md](docs/install.md) | installing, and what it writes where |
+| [docs/release.md](docs/release.md) | how a version is released, and what is not signed yet |
 | [docs/roadmap.md](docs/roadmap.md) | milestones M0–M4 and what is done |
 | [docs/decisions.md](docs/decisions.md) | decisions made, and open questions |
 | [docs/requirements.zh-CN.md](docs/requirements.zh-CN.md) | the full requirements (Chinese) |

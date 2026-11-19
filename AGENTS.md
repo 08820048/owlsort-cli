@@ -31,9 +31,11 @@ code, no shared data, no feature parity required. Written in Go, no cgo, no netw
 ## Commands
 
 ```sh
-make check    # vet + test + gofmt. Run before every commit.
-make build    # ./owlsort
-make cross    # six platform builds; proves nothing needs cgo or a platform API by accident
+make check          # vet + test + gofmt. Run before every commit.
+make build          # ./owlsort
+make cross          # six platform builds; proves nothing needs cgo or a platform API by accident
+make release-check  # goreleaser check + a snapshot build; CI runs this on every push
+make install-test   # run install.sh against a fake release, on this machine
 ```
 
 ## Rules that are easy to break by accident
@@ -52,6 +54,9 @@ make cross    # six platform builds; proves nothing needs cgo or a platform API 
 - **A bad config stops everything.** Never fall back to the built-in rules.
 - **Keep `rules` and `plan` pure:** no disk, no clock, no environment.
 - **Exit codes and JSON field names are a public interface.**
+- **`install.sh` is piped into `sh`.** It must never read its own standard input, or
+  the rest of the script is swallowed on some shells. `make install-test` covers that;
+  run it after touching the installer.
 - **Do not commit** real configs, journals or file lists from a test run.
 - **A command that changes the configuration edits the text** (`internal/tomledit`),
   never `config.Marshal`: re-encoding drops the user's comments (decisions.md, D12).

@@ -27,6 +27,23 @@ $ owlsort undo          # 把上一次放回去
 
 *（计划中的输出，见 [docs/commands.md](docs/commands.md)。）*
 
+## 安装
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/08820048/owlsort-cli/main/install.sh | sh
+owlsort init && owlsort preview
+```
+
+安装脚本会用发行版的 `checksums.txt` 校验下载，对不上就什么都不装。或者自己编译，
+只需要 Go：
+
+```sh
+go install github.com/08820048/owlsort-cli/cmd/owlsort@latest
+```
+
+macOS 的二进制**还没有签名和公证**，从浏览器下载会被 Gatekeeper 拦住；自己编译就
+没有这个问题。详见 [docs/install.md](docs/install.md)。
+
 ## 原则
 
 - **先预览**：`preview` 不动文件；`tidy` 动手前先问。没有终端时只预览，所以脚本不会意外移动文件。
