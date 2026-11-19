@@ -104,6 +104,21 @@ jobs:
       - name: The check refuses an unsigned binary
         run: sh scripts/test-signature-check.sh
 
+  cross-volume:
+    # The one path that can lose a file if it is wrong: a move between volumes copies,
+    # verifies, then removes (safety rule 11). A runner has one volume, so the script
+    # makes a second one out of a disk image — the same thing `make cross-volume-test`
+    # does on a laptop.
+    name: cross-volume moves
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Move files between two real volumes
+        run: sh scripts/test-cross-volume.sh
+
   install:
     # install.sh is piped into `sh`, so it is the one script whose bug costs the
     # user their trust rather than their time. Its checksum step is tested here on
