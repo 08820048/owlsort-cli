@@ -6,7 +6,7 @@ COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 DATE    ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS  = -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)
 
-.PHONY: build test vet fmt check install-test signature-test cross snapshot release-check clean
+.PHONY: build test vet fmt check install-test signature-test cross-volume-test cross snapshot release-check clean
 
 build:            ## build ./owlsort for this machine
 	go build -ldflags '$(LDFLAGS)' -o owlsort ./cmd/owlsort
@@ -28,6 +28,9 @@ install-test:     ## test install.sh against a fake release, on this machine
 
 signature-test:   ## prove the release guard refuses an unsigned macOS binary
 	sh scripts/test-signature-check.sh
+
+cross-volume-test: ## move files between two real volumes (needs a second one; macOS: makes one)
+	sh scripts/test-cross-volume.sh
 
 cross:            ## build every platform, to prove they compile (output in dist/)
 	@mkdir -p dist
