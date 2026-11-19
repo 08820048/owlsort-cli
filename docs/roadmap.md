@@ -90,13 +90,16 @@ reason (D13).
 - [x] `install.sh`, with the download checked against `checksums.txt` before anything
       is installed, tested end to end against a fake release on every push
 - [x] `docs/install.md` and `docs/release.md`; README in English and Chinese
-- [ ] macOS: Developer ID signing and notarization — needs a paid Apple Developer
-      account, which this project does not have yet
+- [x] macOS: Developer ID signing and notarization, with a release that refuses to
+      publish unsigned and a tested check that proves the result
+- [ ] The five signing secrets added to the repository, and the first signed release
 - [ ] Homebrew tap (needs a tap repository), Scoop, winget
 - [ ] A man page; a final pass over SECURITY, TRADEMARK, CONTRIBUTING
 - [ ] The first tagged release
 
-State (2026-11-19): everything that does not need an account somewhere else is done.
+State (2026-11-19): signing is wired up and its guard is tested; what is left is
+adding the secrets and running it once. Everything that does not need an account
+somewhere else is done.
 `make release-check` builds all six archives locally and CI runs it on every push; the
 installer is tested on Linux and macOS against a fake release, including a corrupted
 download and a missing checksums file. What is left needs a person: an Apple

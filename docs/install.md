@@ -35,25 +35,31 @@ go install github.com/08820048/owlsort-cli/cmd/owlsort@latest
 
 This is also the way round the macOS Gatekeeper problem below.
 
-## macOS: the binary is not signed
+## macOS: signed and notarized
 
-The macOS binaries are **not signed or notarized**. A copy downloaded through a
-browser carries the quarantine flag, and macOS refuses to run it until you say so.
+The macOS binaries are signed with a Developer ID and notarized by Apple, so a
+downloaded copy runs without the Gatekeeper warning. The release workflow will not
+publish a version without it ([release.md](release.md)).
 
-Two honest ways, both fine:
+If a build you have does get blocked, it was not signed — check that you downloaded
+it from the releases page of this repository, and that the checksum matches. Then
+either:
 
-- **Build it yourself** (`go install …` above). A binary you compiled locally has no
-  quarantine flag, which is why this is the recommendation rather than a workaround.
-- **Allow the download once**, after checking the checksum against the release page:
+- **Build it yourself**, which is always fine and needs only Go:
+
+  ```sh
+  go install github.com/08820048/owlsort-cli/cmd/owlsort@latest
+  ```
+
+- **Allow the one you have**, after checking the checksum against the release page:
 
   ```sh
   shasum -a 256 ~/Downloads/owlsort_0.1.0_darwin_arm64.tar.gz
   xattr -d com.apple.quarantine /usr/local/bin/owlsort
   ```
 
-Signing and notarization need a paid Apple Developer account
-([release.md](release.md) describes what it would take). Until then this page says
-so, and the release notes say so.
+Note that `install.sh` uses `curl`, which sets no quarantine flag, so the installer
+path is never blocked. Only a download through a browser is.
 
 ## Windows
 

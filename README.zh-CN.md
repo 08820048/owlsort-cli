@@ -41,8 +41,8 @@ owlsort init && owlsort preview
 go install github.com/08820048/owlsort-cli/cmd/owlsort@latest
 ```
 
-macOS 的二进制**还没有签名和公证**，从浏览器下载会被 Gatekeeper 拦住；自己编译就
-没有这个问题。详见 [docs/install.md](docs/install.md)。
+macOS 的二进制用 Developer ID 签名并经过公证，下载后可以直接运行。
+详见 [docs/install.md](docs/install.md)。
 
 ## 原则
 

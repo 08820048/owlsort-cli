@@ -51,23 +51,80 @@ Watch it, and read the release page afterwards. Do not assume it worked.
    `curl -fsSL …/install.sh | sh`. The checksum step is what makes this safe; if it
    prints a mismatch, stop and pull the release.
 3. Check the release notes read the way they should: one sentence per change.
+4. On a Mac, download a darwin archive **in a browser** and run it. That is the path
+   Gatekeeper judges; `curl` sets no quarantine flag, so an installer test proves
+   nothing about it.
 
-## Not signed yet, and what that costs
+## macOS signing and notarization
 
-The macOS binaries are **not signed or notarized**. A binary downloaded through a
-browser is blocked by Gatekeeper until the user allows it. `docs/install.md` says so
-plainly and gives the two honest ways round it (allow it once, or build from
-source). This is a real limitation, not a detail to hide in a footnote.
+`.goreleaser.yaml` signs the darwin binaries with a Developer ID and notarizes them
+through Apple's `notarytool`, so a download is not blocked by Gatekeeper. The
+`Release` workflow **refuses to publish without it**: an unsigned macOS binary is
+unusable for anyone who downloads it in a browser, and shipping one while the README
+promises otherwise is worse than not shipping.
 
-To fix it, this is what is needed, and then what to add to `.goreleaser.yaml`:
+### The five secrets
 
-| Step | Needs |
+Add these under **Settings → Secrets and variables → Actions**. Nothing about them
+belongs in the repository, in a commit message, or in a chat window.
+
+| Secret | What it is |
 |---|---|
-| Sign the darwin binaries | An Apple Developer ID Application certificate (paid account) |
-| Notarize them | An App Store Connect API key (`notarytool`), and the signed zip as the input |
-| Staple the ticket | `xcrun stapler`, after notarization, before archiving |
+| `MACOS_SIGN_P12` | base64 of the **Developer ID Application** certificate, exported as `.p12` from Keychain Access |
+| `MACOS_SIGN_PASSWORD` | the password you set on that `.p12` when exporting it |
+| `MACOS_NOTARY_KEY_ID` | the Key ID of an App Store Connect API key |
+| `MACOS_NOTARY_ISSUER_ID` | the Issuer ID shown above the key list in App Store Connect |
+| `MACOS_NOTARY_KEY` | base64 of the `AuthKey_XXXX.p8` file that key downloaded |
 
-Until then, the release notes say it, and `docs/install.md` says it.
+Getting them:
+
+```sh
+# 1. Is the certificate there, and is it the right kind?
+security find-identity -v -p codesigning
+#    It must say "Developer ID Application: Your Name (TEAMID)".
+#    "Mac App Distribution" and "Apple Development" are the wrong kind: they cannot
+#    sign something for distribution outside the App Store.
+
+# 2. Export it: Keychain Access → My Certificates → right-click the Developer ID
+#    Application certificate → Export → .p12, set a password. Then:
+base64 -i DeveloperID.p12 | pbcopy
+
+# 3. An API key: App Store Connect → Users and Access → Integrations →
+#    App Store Connect API → Keys → +, role "Developer". The .p8 downloads once.
+base64 -i AuthKey_XXXXXXXXXX.p8 | pbcopy
+```
+
+An App Store Connect **API key** is used rather than an Apple ID with an
+app-specific password because it does not need two-factor authentication in CI and
+does not expire on a password change.
+
+### What proves it worked
+
+The workflow does not take "the release succeeded" as evidence. After the build it
+runs `scripts/verify-macos-signature.sh` on both darwin archives, which asks macOS:
+
+1. which certificate signed this binary (`codesign -dv`) — it must be a Developer
+   ID Application, and it must not be ad-hoc;
+2. whether it carries a Team Identifier — ad-hoc signatures have none;
+3. whether Gatekeeper would run it (`spctl --assess`) — only true when Apple has
+   notarized it and the ticket can be found.
+
+`codesign --verify` alone is **not** used as the check: it passes on an unsigned Go
+binary, because Go ad-hoc signs darwin binaries so they can run at all. That trap is
+why the guard is a tested script (`make signature-test`) rather than three lines of
+YAML, and the test asserts the trap: it builds an unsigned binary, confirms
+`codesign --verify` accepts it, and confirms the script does not.
+
+### What has not been tested
+
+The signing path itself. A Developer ID certificate and an Apple notarization round
+trip are not in CI, so **the first signed release is the first real test of it**.
+Run the release, then read the verification step's output; if notarization is
+rejected, the workflow fails before the release page is finished.
+
+If a notarization is rejected for a reason that takes a while to fix, delete the
+draft release and the tag (`git push --delete origin v0.1.0`), fix it, and tag again.
+A tag is cheap; a release page people have already downloaded from is not.
 
 ## Homebrew, Scoop and winget
 

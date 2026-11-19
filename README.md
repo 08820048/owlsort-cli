@@ -56,9 +56,8 @@ nothing if it does not match. Or build it yourself, which needs only Go:
 go install github.com/08820048/owlsort-cli/cmd/owlsort@latest
 ```
 
-macOS binaries are **not signed or notarized** yet, so a downloaded one is blocked
-by Gatekeeper until you allow it — building it yourself avoids that entirely. More
-in [docs/install.md](docs/install.md).
+The macOS binaries are signed with a Developer ID and notarized, so a download runs
+without a Gatekeeper warning. More in [docs/install.md](docs/install.md).
 
 ## Platforms
 

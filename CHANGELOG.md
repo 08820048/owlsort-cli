@@ -8,6 +8,9 @@ All notable changes are listed here. The format follows
 
 ### Added
 
+- macOS binaries signed with a Developer ID and notarized by Apple.
+- A release that refuses to publish unless both darwin archives are signed and
+  accepted by Gatekeeper.
 - `owlsort init`, `preview` and `explain`.
 - `owlsort tidy`, `undo` and `history`.
 - `owlsort rules check`, `uncovered` and `doctor`.

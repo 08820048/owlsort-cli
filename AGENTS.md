@@ -36,6 +36,7 @@ make build          # ./owlsort
 make cross          # six platform builds; proves nothing needs cgo or a platform API by accident
 make release-check  # goreleaser check + a snapshot build; CI runs this on every push
 make install-test   # run install.sh against a fake release, on this machine
+make signature-test # prove the release guard refuses an unsigned macOS binary
 ```
 
 ## Rules that are easy to break by accident
@@ -54,6 +55,9 @@ make install-test   # run install.sh against a fake release, on this machine
 - **A bad config stops everything.** Never fall back to the built-in rules.
 - **Keep `rules` and `plan` pure:** no disk, no clock, no environment.
 - **Exit codes and JSON field names are a public interface.**
+- **Do not verify a macOS signature with `codesign --verify` alone.** Go ad-hoc signs
+  darwin binaries, so it passes on an unsigned build. `scripts/verify-macos-signature.sh`
+  is the check, and `make signature-test` proves it still catches that.
 - **`install.sh` is piped into `sh`.** It must never read its own standard input, or
   the rest of the script is swallowed on some shells. `make install-test` covers that;
   run it after touching the installer.
