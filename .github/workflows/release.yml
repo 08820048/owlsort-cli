@@ -1,0 +1,67 @@
+name: Release
+
+# Only a tag starts this. Pushing commits never publishes anything: a release is a
+# decision, and the decision is a tag someone typed (docs/release.md).
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write # to create the release and upload the archives
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: The tag and the source agree
+        # A tag that does not match the tree is the mistake worth catching first:
+        # every archive would carry a version number that is not what was tested.
+        run: |
+          set -eu
+          go vet ./...
+          go test ./...
+          test -z "$(gofmt -l .)" || (gofmt -l .; exit 1)
+
+      - name: Build every platform
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CGO_ENABLED: "0"
+
+      - name: The release page has what the installer expects
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          tag="${GITHUB_REF_NAME}"
+          for want in checksums.txt \
+            "owlsort_${tag#v}_darwin_arm64.tar.gz" \
+            "owlsort_${tag#v}_darwin_amd64.tar.gz" \
+            "owlsort_${tag#v}_linux_arm64.tar.gz" \
+            "owlsort_${tag#v}_linux_amd64.tar.gz" \
+            "owlsort_${tag#v}_windows_arm64.zip" \
+            "owlsort_${tag#v}_windows_amd64.zip"; do
+            gh release view "$tag" --json assets -q '.assets[].name' | grep -qx "$want" || {
+              echo "the release is missing $want; install.sh would fail for those users"
+              exit 1
+            }
+          done
+          echo "every archive the installer asks for is there"
+
+# TODO(M4), when the machinery exists (docs/release.md):
+#   - macOS signing and notarization, so a downloaded binary is not blocked by
+#     Gatekeeper. Needs an Apple Developer ID and an App Store Connect key.
+#   - Homebrew tap, Scoop bucket, winget: each needs its own repository and token.

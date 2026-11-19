@@ -48,3 +48,62 @@ jobs:
           go-version-file: go.mod
       - name: Every platform builds from one machine
         run: make cross
+
+  release-config:
+    # .goreleaser.yaml sat unexercised for a milestone because nothing ran it.
+    # This does: a snapshot build on every push, so a mistake is found here rather
+    # than on the day of a release.
+    name: release config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # goreleaser reads the git history for the version
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --snapshot --clean
+        env:
+          CGO_ENABLED: "0"
+      - name: The archives carry the documents they promise
+        run: |
+          set -eu
+          for archive in dist/*.tar.gz; do
+            for want in owlsort LICENSE README.md TRADEMARK.md; do
+              tar tzf "$archive" | grep -qx "$want" || {
+                echo "$archive does not contain $want"
+                exit 1
+              }
+            done
+          done
+          for archive in dist/*.zip; do
+            for want in owlsort.exe LICENSE README.md TRADEMARK.md; do
+              unzip -l "$archive" | grep -q " $want\$" || {
+                echo "$archive does not contain $want"
+                exit 1
+              }
+            done
+          done
+          echo "archives contain the binary and the documents"
+
+  install:
+    # install.sh is piped into `sh`, so it is the one script whose bug costs the
+    # user their trust rather than their time. Its checksum step is tested here on
+    # both ends of the range of machines people have.
+    name: install.sh (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Test the installer against a fake release
+        run: sh scripts/test-install.sh
