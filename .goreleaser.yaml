@@ -34,6 +34,27 @@ archives:
       - README.zh-CN.md
       - TRADEMARK.md
 
+# Sign the macOS binaries with a Developer ID and notarize them, so a download is
+# not blocked by Gatekeeper. This is skipped when the secrets are absent, which is
+# what lets CI build a snapshot of every release without them; a real release
+# refuses to run unsigned instead (see .github/workflows/release.yml).
+notarize:
+  macos:
+    - enabled: '{{ isEnvSet "MACOS_SIGN_P12" }}'
+      ids:
+        - owlsort
+      sign:
+        # Base64 of the Developer ID Application certificate exported as .p12.
+        certificate: "{{ .Env.MACOS_SIGN_P12 }}"
+        password: "{{ .Env.MACOS_SIGN_PASSWORD }}"
+      notarize:
+        # An App Store Connect API key, which needs no two-factor dance in CI.
+        issuer_id: "{{ .Env.MACOS_NOTARY_ISSUER_ID }}"
+        key_id: "{{ .Env.MACOS_NOTARY_KEY_ID }}"
+        key: "{{ .Env.MACOS_NOTARY_KEY }}"
+        wait: true
+        timeout: 20m
+
 checksum:
   name_template: checksums.txt
 
@@ -63,7 +84,6 @@ release:
 #   brews:   a tap repository (08820048/homebrew-owlsort) and a HOMEBREW_TAP_TOKEN
 #   scoops:  a bucket repository and its token
 #   winget:  a pull request to microsoft/winget-pkgs
-#   notarize: an Apple Developer ID certificate and an App Store Connect key
 #
 # docs/release.md lists what each one needs and the order to do them in. None of
 # them can be added as a disabled stanza here without `goreleaser check` failing.
